@@ -53,7 +53,7 @@ npm install -g slack-lists-cli
 
 ## Slack App Manifest (for easy testing/sharing)
 
-A ready-to-use manifest is included at `slack-app-manifest.yaml`.
+A ready-to-use manifest is included at `slack-app-manifest.yaml` (JSON format; valid to paste into the manifest editor).
 
 Quick steps:
 - Create a new Slack app from a manifest and paste the contents of `slack-app-manifest.yaml`.
