@@ -2,5 +2,6 @@ node_modules
 /dist
 .env
 .env.local
+schema-*.json
 .DS_Store
 npm-debug.log*
