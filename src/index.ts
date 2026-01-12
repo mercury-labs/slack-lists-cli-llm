@@ -3,6 +3,7 @@
 import { Command, CommanderError } from "commander";
 
 import { registerAuthCommands } from "./commands/auth";
+import { registerAccessCommands } from "./commands/access";
 import { registerCommentCommands } from "./commands/comments";
 import { registerFilesCommands } from "./commands/files";
 import { registerHelpCommand } from "./commands/help";
@@ -30,6 +31,7 @@ program
 program.exitOverride();
 
 registerAuthCommands(program);
+registerAccessCommands(program);
 registerListsCommands(program);
 registerSchemaCommand(program);
 registerItemsCommands(program);

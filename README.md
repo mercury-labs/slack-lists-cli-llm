@@ -39,7 +39,7 @@ npm install -g slack-lists-cli
    ```
 4) If you see `list_not_found`, explicitly grant list access to the channel:
    ```
-   node -e 'const {WebClient}=require("@slack/web-api");const c=new WebClient(process.env.SLACK_TOKEN);c.apiCall("slackLists.access.set",{list_id:"FXXXX",access_level:"write",channel_ids:["CXXXX"]}).then(r=>console.log(JSON.stringify(r,null,2))).catch(e=>console.error(e));'
+   slack-lists access set FXXXX --channels CXXXX --level write
    ```
 5) Verify the CLI:
    ```
@@ -113,6 +113,13 @@ slack-lists lists
 slack-lists lists info <list-id>
 slack-lists schema <list-id>
 slack-lists lists export <list-id> --out ./export.bin
+```
+
+### Access
+
+```
+slack-lists access set <list-id> --channels C123 --level write
+slack-lists access delete <list-id> --channels C123
 ```
 
 ### Items

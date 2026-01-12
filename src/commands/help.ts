@@ -47,6 +47,18 @@ function getCapabilities() {
         options: []
       },
       {
+        command: "access set <list-id>",
+        description: "Grant list access to channels or users",
+        args: ["list-id"],
+        options: ["--channels <channels>", "--users <users>", "--level <level>"]
+      },
+      {
+        command: "access delete <list-id>",
+        description: "Revoke list access from channels or users",
+        args: ["list-id"],
+        options: ["--channels <channels>", "--users <users>"]
+      },
+      {
         command: "lists",
         description: "List accessible lists (if Slack supports list discovery)",
         args: [],
