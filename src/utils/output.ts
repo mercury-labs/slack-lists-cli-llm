@@ -3,6 +3,8 @@ export type ErrorDetails = {
   name?: string;
   stack?: string;
   data?: unknown;
+  code?: string;
+  hint?: string;
 };
 
 export function outputJson(data: unknown): void {
