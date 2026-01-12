@@ -95,6 +95,11 @@ export function findPrimaryTextColumn(index: SchemaIndex): ListColumn | undefine
     return primary;
   }
 
+  const byKey = findColumnByKeyOrName(index, ["name", "title", "task"]);
+  if (byKey) {
+    return byKey;
+  }
+
   const textColumn = index.schema.columns.find((column) =>
     ["text", "rich_text"].includes(column.type)
   );
@@ -103,7 +108,7 @@ export function findPrimaryTextColumn(index: SchemaIndex): ListColumn | undefine
     return textColumn;
   }
 
-  return findColumnByKeyOrName(index, ["name", "title", "task"]);
+  return undefined;
 }
 
 export function inferSchemaFromItems(listId: string, items: unknown[]): ListSchema {

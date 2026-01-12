@@ -8,7 +8,7 @@ import { SlackListsClient } from "../lib/slack-client";
 import { getGlobalOptions } from "../utils/command";
 import { handleCommandError } from "../utils/errors";
 import { outputJson } from "../utils/output";
-import { inferSchemaFromItems } from "../lib/schema";
+import { inferSchemaFromItems, normalizeSchema } from "../lib/schema";
 import { updateSchemaCache } from "../lib/cache";
 
 export function registerListsCommands(program: Command): void {
@@ -48,30 +48,40 @@ export function registerListsCommands(program: Command): void {
 
       try {
         const result = await client.call("slackLists.info", { list_id: listId });
+        if ((result as { ok?: boolean }).ok) {
+          try {
+            const schema = normalizeSchema(result as unknown as Record<string, unknown>);
+            await updateSchemaCache(listId, schema);
+          } catch {
+            // Ignore schema normalization errors and fall back to raw output.
+          }
+        }
         outputJson(result);
       } catch (error) {
         const slackError = (error as { data?: { error?: string } }).data?.error;
-          if (slackError === "unknown_method") {
-            try {
-              const itemsResult = await client.call("slackLists.items.list", {
-                list_id: listId,
-                limit: 1
-              });
-              const items = (itemsResult as { items?: unknown[] }).items ?? [];
+        if (slackError === "unknown_method") {
+          try {
+            const itemsResult = await client.call("slackLists.items.list", {
+              list_id: listId,
+              limit: 100
+            });
+            const items = (itemsResult as { items?: unknown[] }).items ?? [];
             const inferred = inferSchemaFromItems(listId, items);
-            await updateSchemaCache(listId, inferred);
+            if (inferred.columns.length > 0) {
+              await updateSchemaCache(listId, inferred);
+            }
             outputJson({
               ok: true,
-                list_id: listId,
-                inferred_schema: inferred,
-                note:
-                  "Schema inferred from existing item fields; select options and empty-list columns are not discoverable."
-              });
-              return;
-            } catch (fallbackError) {
-              handleCommandError(fallbackError, globals.verbose);
-            }
+              list_id: listId,
+              inferred_schema: inferred,
+              note:
+                "Schema inferred from existing item fields; select options and empty-list columns are not discoverable."
+            });
+            return;
+          } catch (fallbackError) {
+            handleCommandError(fallbackError, globals.verbose);
           }
+        }
         handleCommandError(error, globals.verbose);
       }
     });

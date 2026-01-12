@@ -1,7 +1,13 @@
 import { resolveSchemaPath } from "./config";
 import { SlackListsClient } from "./slack-client";
-import { buildSchemaIndex, normalizeSchema, loadSchemaFromFile, SchemaIndex } from "./schema";
-import { loadCachedSchema, saveSchemaCache } from "./cache";
+import {
+  buildSchemaIndex,
+  inferSchemaFromItems,
+  loadSchemaFromFile,
+  normalizeSchema,
+  SchemaIndex
+} from "./schema";
+import { loadCachedSchema, saveSchemaCache, updateSchemaCache } from "./cache";
 
 export async function resolveSchemaIndex(
   client: SlackListsClient,
@@ -29,6 +35,25 @@ export async function resolveSchemaIndex(
       await saveSchemaCache(listId, schema);
       return buildSchemaIndex(schema);
     }
+  } catch (error) {
+    const slackError = (error as { data?: { error?: string } })?.data?.error;
+    if (slackError !== "unknown_method") {
+      throw error;
+    }
+  }
+
+  try {
+    const itemsResult = await client.call("slackLists.items.list", {
+      list_id: listId,
+      limit: 100
+    });
+    const items = (itemsResult as { items?: Record<string, unknown>[] }).items ?? [];
+    const inferred = inferSchemaFromItems(listId, items);
+    if (inferred.columns.length === 0) {
+      return undefined;
+    }
+    const merged = await updateSchemaCache(listId, inferred);
+    return buildSchemaIndex(merged);
   } catch (error) {
     const slackError = (error as { data?: { error?: string } })?.data?.error;
     if (slackError !== "unknown_method") {

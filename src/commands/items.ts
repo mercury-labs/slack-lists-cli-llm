@@ -34,17 +34,18 @@ export function registerItemsCommands(program: Command): void {
       const client = new SlackListsClient(resolveToken(globals));
 
       try {
+        const items = await fetchAllItems(client, listId, options.archived, options.limit);
+        await syncSchemaCache(listId, items);
         const schemaIndex =
           options.status || options.assignee
             ? await resolveSchemaIndex(client, listId, globals.schema, globals.refreshSchema)
             : undefined;
 
         if ((options.status || options.assignee) && !schemaIndex) {
-          throw new Error("Schema required for status/assignee filters. Provide --schema.");
+          throw new Error(
+            "Schema required for status/assignee filters. Run 'items list' once to seed cache, or provide --schema."
+          );
         }
-
-        const items = await fetchAllItems(client, listId, options.archived, options.limit);
-        await syncSchemaCache(listId, items);
         let filtered = items;
 
         if (options.status && schemaIndex) {
@@ -118,7 +119,7 @@ export function registerItemsCommands(program: Command): void {
 
         if (options.name) {
           if (!schemaIndex) {
-            throw new Error("Schema required for --name. Provide --schema.");
+            throw new Error(schemaRequired("--name"));
           }
           const column = findPrimaryTextColumn(schemaIndex);
           if (!column) {
@@ -130,7 +131,7 @@ export function registerItemsCommands(program: Command): void {
 
         if (options.assignee) {
           if (!schemaIndex) {
-            throw new Error("Schema required for --assignee. Provide --schema.");
+            throw new Error(schemaRequired("--assignee"));
           }
           const column = resolveAssigneeColumn(schemaIndex);
           if (!column) {
@@ -142,7 +143,7 @@ export function registerItemsCommands(program: Command): void {
 
         if (options.priority) {
           if (!schemaIndex) {
-            throw new Error("Schema required for --priority. Provide --schema.");
+            throw new Error(schemaRequired("--priority"));
           }
           const column = resolvePriorityColumn(schemaIndex);
           if (!column) {
@@ -154,7 +155,7 @@ export function registerItemsCommands(program: Command): void {
 
         if (options.status) {
           if (!schemaIndex) {
-            throw new Error("Schema required for --status. Provide --schema.");
+            throw new Error(schemaRequired("--status"));
           }
           const column = resolveStatusColumn(schemaIndex);
           if (!column) {
@@ -166,7 +167,7 @@ export function registerItemsCommands(program: Command): void {
 
         if (options.due) {
           if (!schemaIndex) {
-            throw new Error("Schema required for --due. Provide --schema.");
+            throw new Error(schemaRequired("--due"));
           }
           const column = resolveDueColumn(schemaIndex);
           if (!column) {
@@ -192,7 +193,7 @@ export function registerItemsCommands(program: Command): void {
           }
 
           if (!schemaIndex) {
-            throw new Error("Schema required for --field key=value entries. Provide --schema.");
+            throw new Error(schemaRequired("--field"));
           }
           const column = resolveColumn(schemaIndex, parsed.key);
           if (!column) {
@@ -237,7 +238,7 @@ export function registerItemsCommands(program: Command): void {
 
         if (options.assignee) {
           if (!schemaIndex) {
-            throw new Error("Schema required for --assignee. Provide --schema.");
+            throw new Error(schemaRequired("--assignee"));
           }
           const column = resolveAssigneeColumn(schemaIndex);
           if (!column) {
@@ -249,7 +250,7 @@ export function registerItemsCommands(program: Command): void {
 
         if (options.priority) {
           if (!schemaIndex) {
-            throw new Error("Schema required for --priority. Provide --schema.");
+            throw new Error(schemaRequired("--priority"));
           }
           const column = resolvePriorityColumn(schemaIndex);
           if (!column) {
@@ -261,7 +262,7 @@ export function registerItemsCommands(program: Command): void {
 
         if (options.status) {
           if (!schemaIndex) {
-            throw new Error("Schema required for --status. Provide --schema.");
+            throw new Error(schemaRequired("--status"));
           }
           const column = resolveStatusColumn(schemaIndex);
           if (!column) {
@@ -273,7 +274,7 @@ export function registerItemsCommands(program: Command): void {
 
         if (options.due) {
           if (!schemaIndex) {
-            throw new Error("Schema required for --due. Provide --schema.");
+            throw new Error(schemaRequired("--due"));
           }
           const column = resolveDueColumn(schemaIndex);
           if (!column) {
@@ -299,7 +300,7 @@ export function registerItemsCommands(program: Command): void {
           }
 
           if (!schemaIndex) {
-            throw new Error("Schema required for --field key=value entries. Provide --schema.");
+            throw new Error(schemaRequired("--field"));
           }
           const column = resolveColumn(schemaIndex, parsed.key);
           if (!column) {
@@ -506,6 +507,10 @@ function matchesAssignee(item: Record<string, unknown>, columnId: string, assign
   }
 
   return false;
+}
+
+function schemaRequired(flag: string): string {
+  return `Schema required for ${flag}. Run 'slack-lists items list <list-id>' to seed the cache (if the list has items), or provide --schema.`;
 }
 
 function findField(item: Record<string, unknown>, columnId: string): Record<string, unknown> | null {
