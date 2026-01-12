@@ -1,11 +1,15 @@
+_metadata:
+  major_version: 2
+  minor_version: 1
+
 display_information:
-  name: Slack Lists CLI
+  name: Lists CLI
   description: Agentic coding CLI for Slack Lists
   background_color: "#0f172a"
 
 features:
   bot_user:
-    display_name: slack-lists
+    display_name: lists-cli
     always_online: false
 
 oauth_config:
@@ -21,6 +25,4 @@ oauth_config:
       - files:write
 
 settings:
-  org_deploy_enabled: false
   socket_mode_enabled: false
-  token_rotation_enabled: true
