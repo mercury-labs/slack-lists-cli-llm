@@ -8,8 +8,11 @@ import { registerFilesCommands } from "./commands/files";
 import { registerHelpCommand } from "./commands/help";
 import { registerItemsCommands } from "./commands/items";
 import { registerListsCommands } from "./commands/lists";
+import { loadEnvFiles } from "./lib/env";
 import { CLI_DESCRIPTION, CLI_NAME, CLI_VERSION } from "./lib/metadata";
 import { formatError, outputError } from "./utils/output";
+
+loadEnvFiles();
 
 const program = new Command();
 

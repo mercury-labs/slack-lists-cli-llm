@@ -31,6 +31,7 @@ npm install -g slack-lists-cli
 - `SLACK_TOKEN` (default)
 - `SLACK_BOT_TOKEN` or `SLACK_USER_TOKEN` (optional)
 - `SLACK_LIST_SCHEMA_PATH` (optional default schema file)
+- `.env.local` or `.env` files are loaded automatically if present
 
 ## Global Options
 
