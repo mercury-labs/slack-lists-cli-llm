@@ -46,8 +46,21 @@ npm install -g slack-lists-cli
 - `lists:write`
 - `chat:write`
 - `users:read`
+- `users:read.email`
 - `channels:read`
+- `groups:read`
 - `files:write`
+
+## Slack App Manifest (for easy testing/sharing)
+
+A ready-to-use manifest is included at `slack-app-manifest.yaml`.
+
+Quick steps:
+- Create a new Slack app from a manifest and paste the contents of `slack-app-manifest.yaml`.
+- Install the app to your workspace and copy the bot token.
+- Export the token: `export SLACK_TOKEN=...`
+
+If you do not need private channel resolution, you can remove `groups:read` from the manifest.
 
 ## Notes
 
