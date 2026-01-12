@@ -178,9 +178,11 @@ slack-lists items update <list-id> <item-id> --field "ColumnKey=value"
 ```
 slack-lists comment <list-id> <item-id> "Comment text" --message-url <url>
 slack-lists comments <list-id> <item-id> --compact
+slack-lists comment-edit <channel> <ts> "Revised comment text"
 slack-lists threads set <list-id> <item-id> --message-url <url>
 slack-lists threads get <list-id> <item-id>
 slack-lists threads cleanup <list-id> <item-id> --message-url <url> --root-only
+slack-lists threads edit <list-id> <item-id> "Updated thread comment" --ts <message-ts>
 slack-lists ask <channel> "Question text?" --user @someone
 slack-lists post <channel> "Message text"
 ```

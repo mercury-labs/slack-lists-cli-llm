@@ -148,6 +148,12 @@ function getCapabilities() {
         options: ["--channel <channel>", "--thread-ts <ts>", "--message-url <url>"]
       },
       {
+        command: "comment-edit <channel> <ts> <text>",
+        description: "Edit a comment by timestamp",
+        args: ["channel", "ts", "text"],
+        options: []
+      },
+      {
         command: "comments <list-id> <item-id>",
         description: "Fetch item comment thread (requires history scopes)",
         args: ["list-id", "item-id"],
@@ -180,6 +186,12 @@ function getCapabilities() {
           "--dry-run",
           "--clear-map"
         ]
+      },
+      {
+        command: "threads edit <list-id> <item-id> <text>",
+        description: "Edit a thread comment by timestamp",
+        args: ["list-id", "item-id", "text"],
+        options: ["--message-url <url>", "--channel <channel>", "--thread-ts <ts>", "--ts <message-ts>"]
       },
       {
         command: "ask <channel> <text>",

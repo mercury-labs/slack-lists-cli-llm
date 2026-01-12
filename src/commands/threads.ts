@@ -217,6 +217,65 @@ export function registerThreadsCommands(program: Command): void {
         handleCommandError(error, globals.verbose);
       }
     });
+
+  threads
+    .command("edit")
+    .description("Edit a comment in a thread by timestamp")
+    .argument("<list-id>", "List ID")
+    .argument("<item-id>", "Item ID")
+    .argument("<text>", "New message text")
+    .option("--message-url <url>", "Slack thread message URL")
+    .option("--channel <channel>", "Channel ID or name")
+    .option("--thread-ts <ts>", "Thread timestamp (used to locate thread)")
+    .option("--ts <message-ts>", "Timestamp of the message to edit")
+    .action(async (listId: string, itemId: string, text: string, options, command: Command) => {
+      const globals = getGlobalOptions(command);
+      const client = new SlackListsClient(resolveToken(globals));
+
+      try {
+        let channel = options.channel ? await resolveChannelId(client, options.channel) : undefined;
+        let threadTs = options.threadTs as string | undefined;
+        const messageUrl = options.messageUrl as string | undefined;
+
+        if ((!channel || !threadTs) && messageUrl) {
+          const parsed = parseMessageUrl(messageUrl);
+          if (!parsed) {
+            throw new Error("Unable to parse message URL");
+          }
+          channel = channel ?? parsed.channel;
+          threadTs = threadTs ?? parsed.ts;
+        }
+
+        if (!channel || !threadTs) {
+          const stored = await getThreadEntry(listId, itemId);
+          if (stored?.permalink) {
+            const parsed = parseMessageUrl(stored.permalink);
+            if (parsed) {
+              channel = channel ?? parsed.channel;
+              threadTs = threadTs ?? parsed.ts;
+            }
+          }
+          if (stored?.channel && stored?.ts) {
+            channel = channel ?? stored.channel;
+            threadTs = threadTs ?? stored.ts;
+          }
+        }
+
+        if (!channel || !threadTs) {
+          throw new Error("Unable to resolve thread. Provide --message-url or --channel/--thread-ts.");
+        }
+
+        const messageTs = options.ts as string | undefined;
+        if (!messageTs) {
+          throw new Error("Provide --ts with the message timestamp to edit.");
+        }
+
+        const result = await client.call("chat.update", { channel, ts: messageTs, text });
+        outputJson(result);
+      } catch (error) {
+        handleCommandError(error, globals.verbose);
+      }
+    });
 }
 
 type ThreadMessage = {

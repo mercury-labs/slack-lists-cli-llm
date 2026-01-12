@@ -314,6 +314,25 @@ export function registerCommentCommands(program: Command): void {
         handleCommandError(error, globals.verbose);
       }
     });
+
+  program
+    .command("comment-edit")
+    .description("Edit a comment by timestamp")
+    .argument("<channel>", "Channel ID or name")
+    .argument("<ts>", "Message timestamp")
+    .argument("<text>", "New message text")
+    .action(async (channelInput: string, ts: string, text: string, _options, command: Command) => {
+      const globals = getGlobalOptions(command);
+      const client = new SlackListsClient(resolveToken(globals));
+
+      try {
+        const channel = await resolveChannelId(client, channelInput);
+        const result = await client.call("chat.update", { channel, ts, text });
+        outputJson(result);
+      } catch (error) {
+        handleCommandError(error, globals.verbose);
+      }
+    });
 }
 
 function extractThreadFromItem(itemResult: Record<string, unknown>): { channel: string; ts: string; permalink?: string } | null {
