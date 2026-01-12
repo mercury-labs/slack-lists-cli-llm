@@ -36,6 +36,20 @@ export async function setThreadEntry(listId: string, itemId: string, entry: Thre
   await fs.writeFile(filePath, JSON.stringify(map, null, 2), "utf-8");
 }
 
+export async function removeThreadEntry(listId: string, itemId: string): Promise<void> {
+  const filePath = resolveThreadMapPath();
+  const map = await loadThreadMap();
+  if (!map.lists?.[listId]?.[itemId]) {
+    return;
+  }
+  delete map.lists[listId][itemId];
+  if (Object.keys(map.lists[listId]).length === 0) {
+    delete map.lists[listId];
+  }
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, JSON.stringify(map, null, 2), "utf-8");
+}
+
 async function loadThreadMap(): Promise<ThreadMap> {
   const filePath = resolveThreadMapPath();
   try {

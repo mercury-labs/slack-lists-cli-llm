@@ -111,6 +111,12 @@ Optional (for comment history via `comments`):
 - `im:history`
 - `mpim:history`
 
+Optional (for thread cleanup via `threads cleanup`):
+- `channels:history`
+- `groups:history`
+- `im:history`
+- `mpim:history`
+
 ## Notes
 
 - Slack does **not** expose a list discovery API as of January 2026. `slack-lists lists` will return an informative error unless Slack adds this method.
@@ -172,6 +178,7 @@ slack-lists comment <list-id> <item-id> "Comment text" --message-url <url>
 slack-lists comments <list-id> <item-id> --compact
 slack-lists threads set <list-id> <item-id> --message-url <url>
 slack-lists threads get <list-id> <item-id>
+slack-lists threads cleanup <list-id> <item-id> --message-url <url> --root-only
 slack-lists ask <channel> "Question text?" --user @someone
 slack-lists post <channel> "Message text"
 ```
@@ -272,6 +279,12 @@ You can also set per-list defaults in `~/.config/slack-lists-cli/config.json`:
 
 Thread mappings are stored in `~/.config/slack-lists-cli/threads.json` and can be managed
 via `slack-lists threads set/get`.
+
+To clean up duplicate threads created by accident:
+- Preferred (requires history scopes):  
+  `slack-lists threads cleanup <list-id> <item-id> --message-url <url>`
+- Without history scopes (root only):  
+  `slack-lists threads cleanup <list-id> <item-id> --message-url <url> --root-only`
 
 ### Common commands
 - `slack-lists auth status`

@@ -164,6 +164,22 @@ function getCapabilities() {
         options: ["--message-url <url>", "--channel <channel>", "--thread-ts <ts>"]
       },
       {
+        command: "threads cleanup <list-id> <item-id>",
+        description: "Delete messages in a thread (bot-owned by default)",
+        args: ["list-id", "item-id"],
+        options: [
+          "--message-url <url>",
+          "--channel <channel>",
+          "--thread-ts <ts>",
+          "--keep-root",
+          "--root-only",
+          "--limit <count>",
+          "--force",
+          "--dry-run",
+          "--clear-map"
+        ]
+      },
+      {
         command: "ask <channel> <text>",
         description: "Ask a question in a channel",
         args: ["channel", "text"],
