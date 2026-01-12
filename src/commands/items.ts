@@ -6,6 +6,7 @@ import {
   findColumnByKeyOrName,
   findColumnByType,
   findPrimaryTextColumn,
+  normalizeSchema,
   resolveColumn,
   SchemaIndex
 } from "../lib/schema";
@@ -88,7 +89,19 @@ export function registerItemsCommands(program: Command): void {
       const client = new SlackListsClient(resolveToken(globals));
 
       try {
-        const result = await client.call("slackLists.items.info", { list_id: listId, item_id: itemId });
+        const result = await client.call("slackLists.items.info", { list_id: listId, id: itemId });
+        try {
+          const list = (result as { list?: { list_metadata?: Record<string, unknown>; id?: string } }).list;
+          if (list?.list_metadata) {
+            const schema = normalizeSchema({
+              list_metadata: list.list_metadata,
+              list_id: list.id ?? listId
+            });
+            await updateSchemaCache(listId, schema);
+          }
+        } catch {
+          // Best-effort cache update; ignore schema parsing errors.
+        }
         const item = (result as { item?: Record<string, unknown> }).item;
         if (item) {
           await syncSchemaCache(listId, [item]);
@@ -335,7 +348,7 @@ export function registerItemsCommands(program: Command): void {
       const client = new SlackListsClient(resolveToken(globals));
 
       try {
-        const result = await client.call("slackLists.items.delete", { list_id: listId, item_id: itemId });
+        const result = await client.call("slackLists.items.delete", { list_id: listId, id: itemId });
         outputJson(result);
       } catch (error) {
         handleCommandError(error, globals.verbose);
