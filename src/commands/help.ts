@@ -126,7 +126,7 @@ function getCapabilities() {
         command: "sync cycles",
         description: "Fetch Linear cycles and optionally update config",
         args: [],
-        options: ["--team <team-id>", "--limit <count>", "--current", "--write"]
+        options: ["--team <team-id>", "--team-key <key>", "--limit <count>", "--current", "--write", "--write-team"]
       },
       {
         command: "auth status",

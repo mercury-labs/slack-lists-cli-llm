@@ -30,6 +30,18 @@ const TEAM_CYCLES_QUERY = `
   }
 `;
 
+const TEAMS_QUERY = `
+  query Teams {
+    teams {
+      nodes {
+        id
+        key
+        name
+      }
+    }
+  }
+`;
+
 type CycleNode = {
   id?: string;
   name?: string;
@@ -46,6 +58,10 @@ type TeamCyclesResponse = {
   };
 };
 
+type TeamsResponse = {
+  teams?: { nodes?: Array<{ id?: string; key?: string; name?: string }> };
+};
+
 export function registerSyncCommand(program: Command): void {
   const sync = program.command("sync").description("Sync helper commands");
 
@@ -53,9 +69,11 @@ export function registerSyncCommand(program: Command): void {
     .command("cycles")
     .description("Fetch the latest Linear cycles (optionally update config)")
     .option("--team <team-id>", "Team ID (defaults to LINEAR_TEAM_ID)")
+    .option("--team-key <key>", "Team key to resolve (e.g. PRO)")
     .option("--limit <count>", "Maximum cycles to return", "15")
     .option("--current", "Return only the current cycle", false)
     .option("--write", "Update .ml-agent.config.json with current cycle id", false)
+    .option("--write-team", "Update .ml-agent.config.json with resolved team id", false)
     .action(async (options, command: Command) => {
       const globals = getGlobalOptions(command);
       try {
@@ -63,15 +81,19 @@ export function registerSyncCommand(program: Command): void {
         if (!apiKey) {
           throw new Error("Missing Linear API key. Set LINEAR_API_KEY or .ml-agent.config.json");
         }
-        const teamId = options.team ?? resolveLinearTeamId();
-        if (!teamId) {
-          throw new Error("Provide --team or set LINEAR_TEAM_ID / .ml-agent.config.json");
+        const client = new LinearClient(apiKey);
+        const resolvedTeamId = await resolveTeamId(
+          client,
+          options.team as string | undefined,
+          options.teamKey as string | undefined
+        );
+        if (!resolvedTeamId) {
+          throw new Error("Provide --team/--team-key or set LINEAR_TEAM_ID / .ml-agent.config.json");
         }
 
         const limit = parseLimit(options.limit);
-        const client = new LinearClient(apiKey);
         const result = await client.request<TeamCyclesResponse>(TEAM_CYCLES_QUERY, {
-          teamId,
+          teamId: resolvedTeamId,
           first: limit
         });
 
@@ -85,11 +107,14 @@ export function registerSyncCommand(program: Command): void {
           }
           updatedConfigPath = await updateCycleInConfig(current.id);
         }
+        if (options.writeTeam) {
+          updatedConfigPath = await updateTeamInConfig(resolvedTeamId);
+        }
 
         if (options.current) {
           outputJson({
             ok: Boolean(current),
-            team_id: teamId,
+            team_id: resolvedTeamId,
             current_cycle: current ?? null,
             updated_config_path: updatedConfigPath
           });
@@ -98,7 +123,7 @@ export function registerSyncCommand(program: Command): void {
 
         outputJson({
           ok: true,
-          team_id: teamId,
+          team_id: resolvedTeamId,
           current_cycle: current ?? null,
           cycles,
           updated_config_path: updatedConfigPath
@@ -154,4 +179,52 @@ async function updateCycleInConfig(cycleId: string): Promise<string> {
   await fs.mkdir(path.dirname(configPath), { recursive: true });
   await fs.writeFile(configPath, JSON.stringify(config, null, 2), "utf-8");
   return configPath;
+}
+
+async function updateTeamInConfig(teamId: string): Promise<string> {
+  const configPath = resolveProjectConfigTargetPath();
+  let config: Record<string, unknown> = {};
+  try {
+    const raw = await fs.readFile(configPath, "utf-8");
+    config = JSON.parse(raw) as Record<string, unknown>;
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code !== "ENOENT") {
+      throw error;
+    }
+  }
+
+  const linear = (config.linear ?? {}) as Record<string, unknown>;
+  linear.team_id = teamId;
+  config.linear = linear;
+
+  await fs.mkdir(path.dirname(configPath), { recursive: true });
+  await fs.writeFile(configPath, JSON.stringify(config, null, 2), "utf-8");
+  return configPath;
+}
+
+async function resolveTeamId(
+  client: LinearClient,
+  explicitId?: string,
+  teamKey?: string
+): Promise<string | null> {
+  if (explicitId) {
+    return explicitId;
+  }
+  const configured = resolveLinearTeamId();
+  if (configured) {
+    return configured;
+  }
+  if (!teamKey) {
+    return null;
+  }
+  const result = await client.request<TeamsResponse>(TEAMS_QUERY);
+  const teams = result.teams?.nodes ?? [];
+  const normalized = teamKey.toLowerCase();
+  const match = teams.find(
+    (team) =>
+      (team.key && team.key.toLowerCase() === normalized) ||
+      (team.name && team.name.toLowerCase() === normalized)
+  );
+  return match?.id ?? null;
 }
