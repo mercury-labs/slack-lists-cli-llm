@@ -8,6 +8,8 @@ import { registerCommentCommands } from "./commands/comments";
 import { registerFilesCommands } from "./commands/files";
 import { registerHelpCommand } from "./commands/help";
 import { registerItemsCommands } from "./commands/items";
+import { registerIssuesCommands } from "./commands/issues";
+import { registerLinearCommands } from "./commands/linear";
 import { registerListsCommands } from "./commands/lists";
 import { registerSchemaCommand } from "./commands/schema";
 import { registerScreenshotCommands } from "./commands/screenshot";
@@ -34,6 +36,8 @@ program.exitOverride();
 
 registerAuthCommands(program);
 registerAccessCommands(program);
+registerLinearCommands(program);
+registerIssuesCommands(program);
 registerListsCommands(program);
 registerSchemaCommand(program);
 registerItemsCommands(program);

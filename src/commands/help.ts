@@ -28,6 +28,9 @@ function getCapabilities() {
       { name: "SLACK_TOKEN", description: "Default token" },
       { name: "SLACK_BOT_TOKEN", description: "Optional bot token" },
       { name: "SLACK_USER_TOKEN", description: "Optional user token (used with --as-user)" },
+      { name: "LINEAR_API_KEY", description: "Linear API key" },
+      { name: "LINEAR_TEAM_ID", description: "Default Linear team ID" },
+      { name: "LINEAR_CYCLE_ID", description: "Default Linear cycle ID" },
       { name: "SLACK_LIST_SCHEMA_PATH", description: "Default schema JSON path" },
       {
         name: "SLACK_LIST_DEFAULT_CHANNEL",
@@ -42,12 +45,70 @@ function getCapabilities() {
         description: "Optional path to threads.json (item thread mapping)"
       }
     ],
+    project_config: {
+      path: "./.slack-lists.config.json",
+      description: "Project root config (Linear API key/team/cycle + Slack default channel)"
+    },
     schema_cache: {
       path: "~/.config/slack-lists-cli/schemas/<list-id>.json",
       description:
         "Cached schema per list ID (populated from list/item reads; uses $XDG_CONFIG_HOME when set)"
     },
     commands: [
+      {
+        command: "linear auth status",
+        description: "Verify Linear token works",
+        args: [],
+        options: []
+      },
+      {
+        command: "linear teams",
+        description: "List Linear teams",
+        args: [],
+        options: []
+      },
+      {
+        command: "linear states",
+        description: "List workflow states for a team",
+        args: [],
+        options: ["--team <team-id>"]
+      },
+      {
+        command: "linear comment <issue-id> <text>",
+        description: "Post a Slack comment for a Linear issue",
+        args: ["issue-id", "text"],
+        options: ["--channel <channel>", "--thread-ts <ts>", "--message-url <url>"]
+      },
+      {
+        command: "linear comments <issue-id>",
+        description: "List Slack thread messages for a Linear issue",
+        args: ["issue-id"],
+        options: ["--channel <channel>", "--thread-ts <ts>", "--message-url <url>", "--limit <count>", "--compact"]
+      },
+      {
+        command: "issues list",
+        description: "List Linear issues for a team",
+        args: [],
+        options: ["--team <team-id>", "--cycle <cycle-id>", "--state <state>", "--assignee <assignee>", "--limit <count>", "--compact"]
+      },
+      {
+        command: "issues get <issue-id>",
+        description: "Get a Linear issue",
+        args: ["issue-id"],
+        options: []
+      },
+      {
+        command: "issues create",
+        description: "Create a Linear issue",
+        args: [],
+        options: ["--team <team-id>", "--title <title>", "--description <text>", "--state <state>", "--assignee <assignee>", "--cycle <cycle-id>"]
+      },
+      {
+        command: "issues update <issue-id>",
+        description: "Update a Linear issue",
+        args: ["issue-id"],
+        options: ["--team <team-id>", "--title <title>", "--description <text>", "--state <state>", "--assignee <assignee>", "--cycle <cycle-id>"]
+      },
       {
         command: "auth status",
         description: "Verify token works",

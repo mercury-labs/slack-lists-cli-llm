@@ -1,4 +1,4 @@
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import os from "os";
 import path from "path";
 
@@ -13,6 +13,18 @@ type CliConfig = {
 };
 
 let cachedConfig: CliConfig | null | undefined;
+let cachedProjectConfig: ProjectConfig | null | undefined;
+
+type ProjectConfig = {
+  slack?: {
+    default_channel?: string;
+  };
+  linear?: {
+    api_key?: string;
+    team_id?: string;
+    cycle_id?: string;
+  };
+};
 
 export function resolveToken(options: TokenOptions = {}): string {
   if (options.token) {
@@ -49,12 +61,41 @@ export function resolveDefaultChannel(listId?: string): string | undefined {
     return process.env.SLACK_LIST_DEFAULT_CHANNEL;
   }
 
+  const project = loadProjectConfig();
+  if (project?.slack?.default_channel) {
+    return project.slack.default_channel;
+  }
+
   const config = loadConfig();
   if (listId && config?.lists?.[listId]?.channel) {
     return config.lists[listId]?.channel;
   }
 
   return config?.default_channel;
+}
+
+export function resolveLinearApiKey(): string | undefined {
+  if (process.env.LINEAR_API_KEY) {
+    return process.env.LINEAR_API_KEY;
+  }
+  const project = loadProjectConfig();
+  return project?.linear?.api_key;
+}
+
+export function resolveLinearTeamId(): string | undefined {
+  if (process.env.LINEAR_TEAM_ID) {
+    return process.env.LINEAR_TEAM_ID;
+  }
+  const project = loadProjectConfig();
+  return project?.linear?.team_id;
+}
+
+export function resolveLinearCycleId(): string | undefined {
+  if (process.env.LINEAR_CYCLE_ID) {
+    return process.env.LINEAR_CYCLE_ID;
+  }
+  const project = loadProjectConfig();
+  return project?.linear?.cycle_id;
 }
 
 export function resolveThreadMapPath(): string {
@@ -94,4 +135,42 @@ function resolveConfigPath(): string | null {
 
   const base = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
   return path.join(base, "slack-lists-cli", "config.json");
+}
+
+function loadProjectConfig(): ProjectConfig | null {
+  if (cachedProjectConfig !== undefined) {
+    return cachedProjectConfig;
+  }
+
+  const filePath = findProjectConfigPath();
+  if (!filePath) {
+    cachedProjectConfig = null;
+    return cachedProjectConfig;
+  }
+
+  try {
+    const contents = readFileSync(filePath, "utf-8");
+    cachedProjectConfig = JSON.parse(contents) as ProjectConfig;
+    return cachedProjectConfig;
+  } catch {
+    cachedProjectConfig = null;
+    return cachedProjectConfig;
+  }
+}
+
+function findProjectConfigPath(): string | null {
+  const filename = ".slack-lists.config.json";
+  let current = process.cwd();
+  while (true) {
+    const candidate = path.join(current, filename);
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+  return null;
 }

@@ -3,5 +3,6 @@ node_modules
 .env
 .env.local
 schema-*.json
+.slack-lists.config.json
 .DS_Store
 npm-debug.log*
