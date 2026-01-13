@@ -5,10 +5,11 @@ import path from "path";
 import { resolveToken } from "../lib/config";
 import { buildTypedField } from "../lib/fields";
 import { resolveChannelId } from "../lib/resolvers";
-import { resolveColumn, SchemaIndex, findColumnByType } from "../lib/schema";
-import { ColumnType, ListColumn } from "../lib/types";
+import { ColumnType } from "../lib/types";
 import { resolveSchemaIndex } from "../lib/schema-resolver";
 import { SlackListsClient } from "../lib/slack-client";
+import { resolveEvidenceColumn } from "../lib/evidence";
+import { extractFileId } from "../lib/file-utils";
 import { getGlobalOptions } from "../utils/command";
 import { handleCommandError } from "../utils/errors";
 import { outputJson } from "../utils/output";
@@ -111,50 +112,6 @@ export function registerFilesCommands(program: Command): void {
         handleCommandError(error, globals.verbose);
       }
     });
-}
-
-function resolveEvidenceColumn(
-  schemaIndex: SchemaIndex | undefined,
-  columnArg: string | undefined,
-  fallbackType: ColumnType,
-  allowedTypes: ColumnType[]
-): ListColumn {
-  if (schemaIndex) {
-    if (columnArg) {
-      const resolved = resolveColumn(schemaIndex, columnArg);
-      if (!resolved) {
-        throw new Error(`Unknown column: ${columnArg}`);
-      }
-      if (!allowedTypes.includes(resolved.type)) {
-        throw new Error(`Column ${resolved.name} is not of type ${allowedTypes.join("/")}`);
-      }
-      return resolved;
-    }
-
-    const inferred = findColumnByType(schemaIndex, allowedTypes);
-    if (!inferred) {
-      throw new Error("No evidence column found in schema. Provide --column.");
-    }
-    return inferred;
-  }
-
-  if (!columnArg) {
-    throw new Error("Schema required or provide --column and --column-type.");
-  }
-
-  return { id: columnArg, name: columnArg, type: fallbackType } as ListColumn;
-}
-
-function extractFileId(result: Record<string, unknown>): string {
-  const files = (result as { files?: Array<{ id?: string }> }).files;
-  if (Array.isArray(files) && files.length > 0 && files[0]?.id) {
-    return String(files[0].id);
-  }
-  const file = (result as { file?: { id?: string } }).file;
-  if (file?.id) {
-    return String(file.id);
-  }
-  throw new Error("Unable to locate uploaded file id");
 }
 
 function extractEvidence(result: Record<string, unknown>): Array<Record<string, unknown>> {

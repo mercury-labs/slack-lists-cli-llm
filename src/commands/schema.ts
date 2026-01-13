@@ -25,8 +25,8 @@ export function registerSchemaCommand(program: Command): void {
           );
         }
 
-        const columns = schemaIndex.schema.columns.map((column) => {
-          const compact: Record<string, unknown> = {
+        const columns: CompactColumn[] = schemaIndex.schema.columns.map((column) => {
+          const compact: CompactColumn = {
             id: column.id,
             key: column.key,
             name: column.name,
