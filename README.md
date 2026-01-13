@@ -108,13 +108,14 @@ Create `.ml-agent.config.json` in your project root:
   "project": {
     "name": "my-project"
   },
+  "slack": {
+    "token": "xoxb-...",
+    "default_channel": "C12345678"
+  },
   "linear": {
     "api_key": "lin_api_...",
     "team_id": "TEAM_ID",
     "cycle_id": "CYCLE_ID"
-  },
-  "slack": {
-    "default_channel": "C12345678"
   }
 }
 ```
@@ -363,13 +364,14 @@ Create `.ml-agent.config.json` in the repo root with Linear + Slack defaults:
   "project": {
     "name": "my-project"
   },
+  "slack": {
+    "token": "xoxb-...",
+    "default_channel": "C12345678"
+  },
   "linear": {
     "api_key": "lin_api_...",
     "team_id": "TEAM_ID",
     "cycle_id": "CYCLE_ID"
-  },
-  "slack": {
-    "default_channel": "C12345678"
   }
 }
 ```

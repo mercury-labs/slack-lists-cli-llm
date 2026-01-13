@@ -20,6 +20,7 @@ export type ProjectConfig = {
     name?: string;
   };
   slack?: {
+    token?: string;
     default_channel?: string;
   };
   linear?: {
@@ -44,7 +45,8 @@ export function resolveToken(options: TokenOptions = {}): string {
   const token =
     process.env.SLACK_TOKEN ??
     process.env.SLACK_BOT_TOKEN ??
-    process.env.SLACK_USER_TOKEN;
+    process.env.SLACK_USER_TOKEN ??
+    loadProjectConfig()?.slack?.token;
 
   if (!token) {
     throw new Error(
