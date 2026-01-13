@@ -102,6 +102,23 @@ export function registerSetupCommand(program: Command): void {
           ]
         },
         {
+          id: "agent-docs",
+          title: "Update CLAUDE.md / AGENTS.md",
+          status: "needed",
+          details: "Ensure your agent instruction files mention the ml-agent CLI.",
+          commands: [
+            "cat README.md | sed -n '/## Agent Snippet/,/```/p'",
+            "ml-agent help"
+          ],
+          requires: [
+            {
+              key: "CLAUDE.md or AGENTS.md",
+              description: "Add the ml-agent snippet so agents know how to use the CLI",
+              current: false
+            }
+          ]
+        },
+        {
           id: "slack-channel",
           title: "Invite bot to Slack channel",
           status: defaultChannel ? "complete" : "needed",
