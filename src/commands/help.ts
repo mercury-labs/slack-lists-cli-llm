@@ -75,6 +75,12 @@ function getCapabilities() {
         options: ["--team <team-id>"]
       },
       {
+        command: "linear cycles",
+        description: "List cycles for a team",
+        args: [],
+        options: ["--team <team-id>", "--limit <count>", "--current"]
+      },
+      {
         command: "linear comment <issue-id> <text>",
         description: "Post a Slack comment for a Linear issue",
         args: ["issue-id", "text"],

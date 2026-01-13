@@ -48,6 +48,24 @@ const TEAM_STATES_QUERY = `
   }
 `;
 
+const TEAM_CYCLES_QUERY = `
+  query TeamCycles($teamId: String!, $first: Int!) {
+    team(id: $teamId) {
+      id
+      name
+      cycles(first: $first) {
+        nodes {
+          id
+          name
+          number
+          startsAt
+          endsAt
+        }
+      }
+    }
+  }
+`;
+
 const ISSUE_QUERY = `
   query Issue($id: String!) {
     issue(id: $id) {
@@ -144,6 +162,46 @@ export function registerLinearCommands(program: Command): void {
         const client = getLinearClient();
         const result = await client.request<TeamStatesResponse>(TEAM_STATES_QUERY, { teamId });
         outputJson({ ok: true, team: result.team, states: result.team?.states?.nodes ?? [] });
+      } catch (error) {
+        handleCommandError(error, globals.verbose);
+      }
+    });
+
+  linear
+    .command("cycles")
+    .description("List cycles for a team")
+    .option("--team <team-id>", "Team ID")
+    .option("--limit <count>", "Maximum cycles to return", "15")
+    .option("--current", "Return only the current cycle", false)
+    .action(async (options, command: Command) => {
+      const globals = getGlobalOptions(command);
+      try {
+        const teamId = resolveTeamId(options.team);
+        const limit = parseLimit(options.limit);
+        const client = getLinearClient();
+        const result = await client.request<TeamCyclesResponse>(TEAM_CYCLES_QUERY, {
+          teamId,
+          first: limit
+        });
+
+        const cycles = (result.team?.cycles?.nodes ?? []).filter(Boolean);
+        const current = findCurrentCycle(cycles);
+
+        if (options.current) {
+          outputJson({
+            ok: Boolean(current),
+            team_id: teamId,
+            current_cycle: current ?? null
+          });
+          return;
+        }
+
+        outputJson({
+          ok: true,
+          team_id: teamId,
+          current_cycle: current ?? null,
+          cycles
+        });
       } catch (error) {
         handleCommandError(error, globals.verbose);
       }
@@ -385,12 +443,28 @@ type TeamStatesResponse = {
   };
 };
 
+type TeamCyclesResponse = {
+  team?: {
+    id?: string;
+    name?: string;
+    cycles?: { nodes?: CycleNode[] };
+  };
+};
+
 type LinearIssue = {
   id: string;
   identifier?: string;
   title?: string;
   team?: { id?: string; name?: string };
   attachments?: { nodes?: Array<{ url?: string }> };
+};
+
+type CycleNode = {
+  id?: string;
+  name?: string;
+  number?: number;
+  startsAt?: string;
+  endsAt?: string;
 };
 
 function getLinearClient(): LinearClient {
@@ -442,6 +516,29 @@ function buildLinearThreadRootText(issue: LinearIssue): string {
   const identifier = issue.identifier ? `${issue.identifier}` : "issue";
   const title = issue.title ? `: ${issue.title}` : "";
   return `Thread for Linear ${identifier}${title}`;
+}
+
+function parseLimit(value: string | undefined): number {
+  const limit = Number(value ?? 15);
+  if (!Number.isFinite(limit) || limit <= 0) {
+    throw new Error("--limit must be a positive number");
+  }
+  return limit;
+}
+
+function findCurrentCycle(cycles: CycleNode[]): CycleNode | null {
+  const now = new Date();
+  const candidates = cycles.filter((cycle) => cycle?.startsAt && cycle?.endsAt);
+  for (const cycle of candidates) {
+    const start = new Date(cycle.startsAt!);
+    const end = new Date(cycle.endsAt!);
+    if (!Number.isNaN(start.valueOf()) && !Number.isNaN(end.valueOf())) {
+      if (start <= now && now <= end) {
+        return cycle;
+      }
+    }
+  }
+  return null;
 }
 
 async function createThreadAttachment(

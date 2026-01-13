@@ -195,6 +195,8 @@ ml-agent linear auth status
 ```
 ml-agent linear teams
 ml-agent linear states --team <team-id>
+ml-agent linear cycles --team <team-id>
+ml-agent linear cycles --current
 ml-agent issues list
 ml-agent issues list --state "In Progress"
 ml-agent issues get <issue-id>
@@ -411,6 +413,7 @@ To clean up duplicate threads created by accident:
 - `ml-agent linear auth status`
 - `ml-agent linear teams`
 - `ml-agent linear states --team <team-id>`
+- `ml-agent linear cycles --current`
 - `ml-agent issues list`
 - `ml-agent issues get <issue-id>`
 - `ml-agent issues update <issue-id> --state "In Progress"`

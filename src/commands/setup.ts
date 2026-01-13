@@ -22,7 +22,10 @@ export function registerSetupCommand(program: Command): void {
       const projectConfigPath = getProjectConfigPath();
 
       const slackToken =
-        process.env.SLACK_TOKEN ?? process.env.SLACK_BOT_TOKEN ?? process.env.SLACK_USER_TOKEN;
+        process.env.SLACK_TOKEN ??
+        process.env.SLACK_BOT_TOKEN ??
+        process.env.SLACK_USER_TOKEN ??
+        projectConfig?.slack?.token;
       const linearApiKey = process.env.LINEAR_API_KEY ?? projectConfig?.linear?.api_key;
       const teamId = process.env.LINEAR_TEAM_ID ?? projectConfig?.linear?.team_id;
       const cycleId = process.env.LINEAR_CYCLE_ID ?? projectConfig?.linear?.cycle_id;
@@ -69,6 +72,20 @@ export function registerSetupCommand(program: Command): void {
             }
           ],
           commands: ["ml-agent linear auth status", "ml-agent linear teams"]
+        },
+        {
+          id: "linear-cycle",
+          title: "Pick a current Linear cycle (optional)",
+          status: cycleId ? "complete" : "optional",
+          details: "Fetch the current cycle ID if you want to scope issues to a cycle.",
+          requires: [
+            {
+              key: "LINEAR_CYCLE_ID",
+              description: "Current cycle ID (optional)",
+              current: Boolean(cycleId)
+            }
+          ],
+          commands: ["ml-agent linear cycles --current"]
         },
         {
           id: "project-config",
