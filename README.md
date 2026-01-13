@@ -1,10 +1,10 @@
 # slack-lists-cli
 
-CLI for agentic coding workflows using Slack Lists. Commands return JSON for agent consumption.
+CLI for agentic coding workflows using Linear + Slack. Commands return JSON for agent consumption.
 
 ## Why This Exists
 
-This CLI is built specifically for AI coding agents (Claude, GPT, Codex, etc.) to interact with Slack Lists for task management, status updates, and evidence tracking. Unlike general-purpose Slack tools, every design decision prioritizes machine readability and agent workflows.
+This CLI is built specifically for AI coding agents (Claude, GPT, Codex, etc.) to manage tasks in Linear while communicating in Slack. Unlike general-purpose tools, every design decision prioritizes machine readability and agent workflows.
 
 ## Design Principles for Agentic Coding
 
@@ -17,7 +17,8 @@ This CLI is built specifically for AI coding agents (Claude, GPT, Codex, etc.) t
 ## Requirements
 
 - Node.js >= 18
-- Slack token with lists scopes
+- Slack token with messaging scopes
+- Linear API key
 - Paid Slack workspace
 - Playwright (optional, for screenshot commands)
 
@@ -62,37 +63,59 @@ You can always run the CLI directly:
 node /absolute/path/to/slack-lists-cli/dist/index.js <command>
 ```
 
-## Quickstart (Testing with Slack)
+## Quickstart (Linear + Slack)
 
 1) Create a Slack app from `slack-app-manifest.yaml`, then install it to your workspace.
 2) Copy the Bot User OAuth Token (`xoxb-...`) and place it in `.env.local`:
    ```
    SLACK_TOKEN=xoxb-...
    ```
-3) Invite the bot to the channel where the list is shared:
+3) Create a Linear API key and add it to your project config:
+   ```
+   .slack-lists.config.json
+   ```
+4) Invite the bot to the channel where you want updates:
    ```
    /invite @lists-cli
    ```
-4) If you see `list_not_found`, explicitly grant list access to the channel:
-   ```
-   slack-lists access set FXXXX --channels CXXXX --level write
-   ```
 5) Verify the CLI:
    ```
-   node dist/index.js auth status
-   node dist/index.js lists info <list-id>
-   node dist/index.js items list <list-id>
+   node dist/index.js linear auth status
+   node dist/index.js linear teams
+   node dist/index.js issues list
    ```
 
 ## Environment
 
 - `SLACK_TOKEN` (default)
 - `SLACK_BOT_TOKEN` or `SLACK_USER_TOKEN` (optional)
+- `LINEAR_API_KEY`
+- `LINEAR_TEAM_ID` (optional default)
+- `LINEAR_CYCLE_ID` (optional default)
 - `SLACK_LIST_SCHEMA_PATH` (optional default schema file)
 - `SLACK_LIST_DEFAULT_CHANNEL` (optional default channel for comment threads)
 - `SLACK_LIST_CONFIG_PATH` (optional path to config.json for per-list defaults)
 - `SLACK_LIST_THREAD_MAP_PATH` (optional path to threads.json for item → thread mapping)
 - `.env.local` or `.env` files are loaded automatically if present
+
+## Project Config (recommended)
+
+Create `.slack-lists.config.json` in your project root:
+
+```json
+{
+  "linear": {
+    "api_key": "lin_api_...",
+    "team_id": "TEAM_ID",
+    "cycle_id": "CYCLE_ID"
+  },
+  "slack": {
+    "default_channel": "C12345678"
+  }
+}
+```
+
+This file is ignored by git by default.
 
 ## Global Options
 
@@ -102,10 +125,10 @@ node /absolute/path/to/slack-lists-cli/dist/index.js <command>
 - `--refresh-schema` bypass cached schema and refresh from Slack
 - `--verbose` include Slack error payloads
 
-## Required OAuth Scopes
+## Required OAuth Scopes (Slack)
 
-- `lists:read`
-- `lists:write`
+- `lists:read` (only if using Slack Lists legacy commands)
+- `lists:write` (only if using Slack Lists legacy commands)
 - `chat:write`
 - `users:read`
 - `users:read.email`
@@ -127,6 +150,7 @@ Optional (for thread cleanup via `threads cleanup`):
 
 ## Notes
 
+- Linear is now the primary task backend. Slack Lists commands are retained for legacy/testing use.
 - Slack does **not** expose a list discovery API as of January 2026. `slack-lists lists` will return an informative error unless Slack adds this method.
 - Items create/update use schema to map friendly flags (`--name`, `--status`, etc). The CLI auto-caches schemas from list/item reads.
 - If a list has no items (or columns never populated), Slack won’t expose those columns. Provide `--schema` or use `--field` with `column_id` in that case.
@@ -148,6 +172,26 @@ This returns JSON describing all commands, options, and environment variables fo
 
 ```
 slack-lists auth status
+slack-lists linear auth status
+```
+
+### Linear Tasks
+
+```
+slack-lists linear teams
+slack-lists linear states --team <team-id>
+slack-lists issues list
+slack-lists issues list --state "In Progress"
+slack-lists issues get <issue-id>
+slack-lists issues create --title "Task" --team <team-id>
+slack-lists issues update <issue-id> --state "In Progress"
+```
+
+### Linear Slack Threads
+
+```
+slack-lists linear comment <issue-id> "Question for the author"
+slack-lists linear comments <issue-id> --compact
 ```
 
 ### Lists
@@ -246,20 +290,13 @@ Provide a schema file when the CLI can’t infer one (e.g., empty lists). It sho
 
 ## Agent State (recommended)
 
-For simple agent workflows, add a select field to your list:
+Map agent workflow to Linear workflow states. Pick a small, stable set of Linear states
+that represent your agent lifecycle (e.g. `Needs Input`, `In Progress`, `Blocked`,
+`Ready for Review`, `Ready for Test`) and update issues directly:
 
-- **Field name**: `Agent State`
-- **Field key**: `agent_state`
-- **Values**:
-  - `needs_input`
-  - `in_progress`
-  - `blocked`
-  - `ready_for_review`
-  - `ready_for_test`
-
-Once present, the CLI exposes:
 ```
-slack-lists items update <list-id> <item-id> --agent-state needs_input
+slack-lists issues update <issue-id> --state "Needs Input"
+slack-lists issues update <issue-id> --state "Ready for Test"
 ```
 
 ## Output Format
@@ -288,18 +325,37 @@ All commands output JSON to stdout. Errors output JSON to stderr with exit code 
 ```md
 ## Slack Lists CLI (agentic coding)
 
-You can use the `slack-lists` CLI for agentic coding workflows on Slack Lists. It outputs JSON for machine parsing.
+You can use the `slack-lists` CLI for agentic coding workflows with Linear + Slack. It outputs JSON for machine parsing.
 
 ### How to discover capabilities
 - Run `slack-lists help` for a JSON manifest of commands, flags, and env vars.
 
 ### Required env
 - `SLACK_TOKEN` (or `SLACK_BOT_TOKEN` / `SLACK_USER_TOKEN` with `--as-user`)
+- `LINEAR_API_KEY`
+- `LINEAR_TEAM_ID` (optional default)
+- `LINEAR_CYCLE_ID` (optional default)
 - `SLACK_LIST_DEFAULT_CHANNEL` (optional, channel ID or #name for auto-threading)
 - `SLACK_LIST_CONFIG_PATH` (optional config.json for per-list defaults)
 - `SLACK_LIST_THREAD_MAP_PATH` (optional threads.json for item → thread mapping)
 
-### Schema handling
+### Project config (recommended)
+Create `.slack-lists.config.json` in the repo root with Linear + Slack defaults:
+
+```json
+{
+  "linear": {
+    "api_key": "lin_api_...",
+    "team_id": "TEAM_ID",
+    "cycle_id": "CYCLE_ID"
+  },
+  "slack": {
+    "default_channel": "C12345678"
+  }
+}
+```
+
+### Schema handling (Slack Lists legacy)
 - The CLI caches schemas per list ID at `~/.config/slack-lists-cli/schemas/<list-id>.json` (or `$XDG_CONFIG_HOME`).
 - Cache is updated automatically on list/item reads; for empty lists, pass `--schema`.
 - Use `--refresh-schema` if columns/options change.
@@ -308,7 +364,7 @@ You can use the `slack-lists` CLI for agentic coding workflows on Slack Lists. I
 
 ### Default channel for comments
 - Set `SLACK_LIST_DEFAULT_CHANNEL` (e.g. `#team-channel` or `C12345678`) so the CLI can
-  auto-create a thread and store its permalink when you post the first comment on an item.
+  auto-create a thread and store its permalink when you post the first comment on an issue.
 
 You can also set per-list defaults in `~/.config/slack-lists-cli/config.json`:
 ```json
@@ -331,6 +387,14 @@ To clean up duplicate threads created by accident:
 
 ### Common commands
 - `slack-lists auth status`
+- `slack-lists linear auth status`
+- `slack-lists linear teams`
+- `slack-lists linear states --team <team-id>`
+- `slack-lists issues list`
+- `slack-lists issues get <issue-id>`
+- `slack-lists issues update <issue-id> --state "In Progress"`
+- `slack-lists linear comment <issue-id> "Question"`
+- `slack-lists linear comments <issue-id> --compact`
 - `slack-lists lists info <list-id>`
 - `slack-lists lists id <list-url>`
 - `slack-lists schema <list-id>`
