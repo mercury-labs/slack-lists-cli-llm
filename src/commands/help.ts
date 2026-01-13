@@ -31,22 +31,15 @@ function getCapabilities() {
       { name: "LINEAR_API_KEY", description: "Linear API key" },
       { name: "LINEAR_TEAM_ID", description: "Default Linear team ID" },
       { name: "LINEAR_CYCLE_ID", description: "Default Linear cycle ID" },
-      { name: "SLACK_LIST_SCHEMA_PATH", description: "Default schema JSON path" },
+      { name: "ML_AGENT_PROJECT", description: "Override project name for cache/config paths" },
+      { name: "ML_AGENT_SCHEMA_PATH", description: "Default schema JSON path (legacy Slack Lists)" },
       {
         name: "SLACK_LIST_DEFAULT_CHANNEL",
         description: "Fallback channel for comment threads (ID or #name)"
       },
       {
-        name: "SLACK_LIST_CONFIG_PATH",
-        description: "Optional path to config.json (per-list defaults)"
-      },
-      {
         name: "ML_AGENT_CONFIG_PATH",
-        description: "Optional path to config.json (per-list defaults)"
-      },
-      {
-        name: "SLACK_LIST_THREAD_MAP_PATH",
-        description: "Optional path to threads.json (item thread mapping)"
+        description: "Optional path to config.json (project defaults)"
       },
       {
         name: "ML_AGENT_THREAD_MAP_PATH",
@@ -58,7 +51,7 @@ function getCapabilities() {
       description: "Project root config (Linear API key/team/cycle + Slack default channel)"
     },
     schema_cache: {
-      path: "~/.config/ml-agent/schemas/<list-id>.json",
+      path: "~/.config/ml-agent/projects/<project>/schemas/<list-id>.json",
       description:
         "Cached schema per list ID (populated from list/item reads; uses $XDG_CONFIG_HOME when set)"
     },

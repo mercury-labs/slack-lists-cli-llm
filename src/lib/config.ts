@@ -16,6 +16,9 @@ let cachedConfig: CliConfig | null | undefined;
 let cachedProjectConfig: ProjectConfig | null | undefined;
 
 export type ProjectConfig = {
+  project?: {
+    name?: string;
+  };
   slack?: {
     default_channel?: string;
   };
@@ -53,7 +56,7 @@ export function resolveToken(options: TokenOptions = {}): string {
 }
 
 export function resolveSchemaPath(cliPath?: string): string | undefined {
-  return cliPath ?? process.env.SLACK_LIST_SCHEMA_PATH;
+  return cliPath ?? process.env.ML_AGENT_SCHEMA_PATH ?? process.env.SLACK_LIST_SCHEMA_PATH;
 }
 
 export function resolveDefaultChannel(listId?: string): string | undefined {
@@ -106,6 +109,18 @@ export function getProjectConfigPath(): string | null {
   return findProjectConfigPath();
 }
 
+export function resolveProjectName(): string {
+  if (process.env.ML_AGENT_PROJECT) {
+    return sanitizeProjectName(process.env.ML_AGENT_PROJECT);
+  }
+  const project = loadProjectConfig();
+  if (project?.project?.name) {
+    return sanitizeProjectName(project.project.name);
+  }
+  const root = findProjectRoot();
+  return sanitizeProjectName(path.basename(root));
+}
+
 export function resolveThreadMapPath(): string {
   if (process.env.ML_AGENT_THREAD_MAP_PATH) {
     return process.env.ML_AGENT_THREAD_MAP_PATH;
@@ -115,7 +130,8 @@ export function resolveThreadMapPath(): string {
   }
 
   const base = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
-  return path.join(base, "ml-agent", "threads.json");
+  const project = resolveProjectName();
+  return path.join(base, "ml-agent", "projects", project, "threads.json");
 }
 
 function loadConfig(): CliConfig | null {
@@ -148,7 +164,8 @@ function resolveConfigPath(): string | null {
   }
 
   const base = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
-  const primary = path.join(base, "ml-agent", "config.json");
+  const project = resolveProjectName();
+  const primary = path.join(base, "ml-agent", "projects", project, "config.json");
   const legacy = path.join(base, "slack-lists-cli", "config.json");
   if (existsSync(primary)) {
     return primary;
@@ -197,4 +214,29 @@ function findProjectConfigPath(): string | null {
     current = parent;
   }
   return null;
+}
+
+function findProjectRoot(): string {
+  let current = process.cwd();
+  while (true) {
+    if (
+      existsSync(path.join(current, ".ml-agent.config.json")) ||
+      existsSync(path.join(current, ".slack-lists.config.json")) ||
+      existsSync(path.join(current, ".git")) ||
+      existsSync(path.join(current, "package.json"))
+    ) {
+      return current;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) {
+      return current;
+    }
+    current = parent;
+  }
+}
+
+function sanitizeProjectName(name: string): string {
+  const trimmed = name.trim();
+  const normalized = trimmed.toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
+  return normalized || "default";
 }

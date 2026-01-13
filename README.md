@@ -92,12 +92,11 @@ node /absolute/path/to/ml-agent/dist/index.js <command>
 - `LINEAR_API_KEY`
 - `LINEAR_TEAM_ID` (optional default)
 - `LINEAR_CYCLE_ID` (optional default)
-- `SLACK_LIST_SCHEMA_PATH` (optional default schema file)
+- `ML_AGENT_PROJECT` (optional project name override for caches)
+- `ML_AGENT_SCHEMA_PATH` (optional default schema file, legacy Slack Lists)
 - `SLACK_LIST_DEFAULT_CHANNEL` (optional default channel for comment threads)
-- `ML_AGENT_CONFIG_PATH` (optional path to config.json for per-list defaults)
+- `ML_AGENT_CONFIG_PATH` (optional path to config.json for project defaults)
 - `ML_AGENT_THREAD_MAP_PATH` (optional path to threads.json for item → thread mapping)
-- `SLACK_LIST_CONFIG_PATH` (legacy, optional)
-- `SLACK_LIST_THREAD_MAP_PATH` (legacy, optional)
 - `.env.local` or `.env` files are loaded automatically if present
 
 ## Project Config (recommended)
@@ -106,6 +105,9 @@ Create `.ml-agent.config.json` in your project root:
 
 ```json
 {
+  "project": {
+    "name": "my-project"
+  },
   "linear": {
     "api_key": "lin_api_...",
     "team_id": "TEAM_ID",
@@ -156,7 +158,7 @@ Optional (for thread cleanup via `threads cleanup`):
 - Slack does **not** expose a list discovery API as of January 2026. `ml-agent lists` will return an informative error unless Slack adds this method.
 - Items create/update use schema to map friendly flags (`--name`, `--status`, etc). The CLI auto-caches schemas from list/item reads.
 - If a list has no items (or columns never populated), Slack won’t expose those columns. Provide `--schema` or use `--field` with `column_id` in that case.
-- The CLI caches schemas per list ID at `~/.config/ml-agent/schemas/<list-id>.json` (or `$XDG_CONFIG_HOME`).
+- The CLI caches schemas per list ID at `~/.config/ml-agent/projects/<project>/schemas/<list-id>.json` (or `$XDG_CONFIG_HOME`).
 - `lists info` will try `slackLists.info`; if unavailable, it infers schema from existing items (limited; no select options or empty columns).
 - Schema cache is updated in the background on list/item reads (best-effort) to keep columns in sync.
 
@@ -348,17 +350,19 @@ You can use the `ml-agent` CLI for agentic coding workflows with Linear + Slack.
 - `LINEAR_API_KEY`
 - `LINEAR_TEAM_ID` (optional default)
 - `LINEAR_CYCLE_ID` (optional default)
+- `ML_AGENT_PROJECT` (optional project name override for caches)
 - `SLACK_LIST_DEFAULT_CHANNEL` (optional, channel ID or #name for auto-threading)
-- `ML_AGENT_CONFIG_PATH` (optional config.json for per-list defaults)
+- `ML_AGENT_CONFIG_PATH` (optional config.json for project defaults)
 - `ML_AGENT_THREAD_MAP_PATH` (optional threads.json for item → thread mapping)
-- `SLACK_LIST_CONFIG_PATH` (legacy, optional)
-- `SLACK_LIST_THREAD_MAP_PATH` (legacy, optional)
 
 ### Project config (recommended)
 Create `.ml-agent.config.json` in the repo root with Linear + Slack defaults:
 
 ```json
 {
+  "project": {
+    "name": "my-project"
+  },
   "linear": {
     "api_key": "lin_api_...",
     "team_id": "TEAM_ID",
@@ -371,7 +375,7 @@ Create `.ml-agent.config.json` in the repo root with Linear + Slack defaults:
 ```
 
 ### Schema handling (Slack Lists legacy)
-- The CLI caches schemas per list ID at `~/.config/ml-agent/schemas/<list-id>.json` (or `$XDG_CONFIG_HOME`).
+- The CLI caches schemas per list ID at `~/.config/ml-agent/projects/<project>/schemas/<list-id>.json` (or `$XDG_CONFIG_HOME`).
 - Cache is updated automatically on list/item reads; for empty lists, pass `--schema`.
 - Use `--refresh-schema` if columns/options change.
 - Use `ml-agent schema <list-id>` for compact, token-efficient schema output.
@@ -381,7 +385,7 @@ Create `.ml-agent.config.json` in the repo root with Linear + Slack defaults:
 - Set `SLACK_LIST_DEFAULT_CHANNEL` (e.g. `#team-channel` or `C12345678`) so the CLI can
   auto-create a thread and store its permalink when you post the first comment on an issue.
 
-You can also set per-list defaults in `~/.config/ml-agent/config.json`:
+You can also set per-list defaults in `~/.config/ml-agent/projects/<project>/config.json`:
 ```json
 {
   "default_channel": "C12345678",
@@ -391,7 +395,7 @@ You can also set per-list defaults in `~/.config/ml-agent/config.json`:
 }
 ```
 
-Thread mappings are stored in `~/.config/ml-agent/threads.json` and can be managed
+Thread mappings are stored in `~/.config/ml-agent/projects/<project>/threads.json` and can be managed
 via `ml-agent threads set/get`.
 
 To clean up duplicate threads created by accident:
