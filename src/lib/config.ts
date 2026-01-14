@@ -58,7 +58,7 @@ export function resolveToken(options: TokenOptions = {}): string {
 }
 
 export function resolveSchemaPath(cliPath?: string): string | undefined {
-  return cliPath ?? process.env.ML_AGENT_SCHEMA_PATH ?? process.env.SLACK_LIST_SCHEMA_PATH;
+  return cliPath ?? process.env.ML_AGENT_SCHEMA_PATH;
 }
 
 export function resolveDefaultChannel(listId?: string): string | undefined {
@@ -139,9 +139,6 @@ export function resolveThreadMapPath(): string {
   if (process.env.ML_AGENT_THREAD_MAP_PATH) {
     return process.env.ML_AGENT_THREAD_MAP_PATH;
   }
-  if (process.env.SLACK_LIST_THREAD_MAP_PATH) {
-    return process.env.SLACK_LIST_THREAD_MAP_PATH;
-  }
 
   const base = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
   const project = resolveProjectName();
@@ -173,19 +170,12 @@ function resolveConfigPath(): string | null {
   if (process.env.ML_AGENT_CONFIG_PATH) {
     return process.env.ML_AGENT_CONFIG_PATH;
   }
-  if (process.env.SLACK_LIST_CONFIG_PATH) {
-    return process.env.SLACK_LIST_CONFIG_PATH;
-  }
 
   const base = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
   const project = resolveProjectName();
   const primary = path.join(base, "ml-agent", "projects", project, "config.json");
-  const legacy = path.join(base, "slack-lists-cli", "config.json");
   if (existsSync(primary)) {
     return primary;
-  }
-  if (existsSync(legacy)) {
-    return legacy;
   }
   return primary;
 }

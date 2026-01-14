@@ -5,5 +5,6 @@ node_modules
 schema-*.json
 .ml-agent.config.json
 .slack-lists.config.json
+.tmp
 .DS_Store
 npm-debug.log*
