@@ -152,6 +152,7 @@ This file is ignored by git by default.
 - `channels:read`
 - `groups:read`
 - `files:write`
+- `search:read` (user token only, for `slack search`)
 
 Optional (for comment history via `comments`):
 - `channels:history`
@@ -312,6 +313,16 @@ ml-agent screenshot post https://example.com --message-url <thread-url> --commen
 
 Screenshots are captured headlessly via Playwright. Use `--wait-for` to wait on a selector
 or `--wait` to pause before capture if the UI needs time to settle.
+
+### Slack history/search
+
+```
+ml-agent slack history C123 --limit 100 --compact
+ml-agent slack history C123 --since "2025-01-01T00:00:00Z" --latest "2025-01-02T00:00:00Z"
+ml-agent slack search "from:@alice has:link" --limit 25 --compact
+```
+
+`slack search` requires a user token (`xoxp-`) and the `search:read` scope.
 
 ## Schema File Format
 
@@ -498,6 +509,8 @@ To clean up duplicate threads created by accident:
 - `ml-agent comments <list-id> <item-id> --compact`
 - `ml-agent evidence upload <list-id> <item-id> ./file.png`
 - `ml-agent files upload ./file.pdf --channel C123`
+- `ml-agent slack history C123 --compact`
+- `ml-agent slack search "from:@alice" --compact`
 - `ml-agent screenshot capture https://example.com --out ./ui.png`
 - `ml-agent screenshot post https://example.com --channel C123 --comment "UI update"`
 - `ml-agent screenshot post https://example.com --issue ABC-123 --channel C123 --comment "UI update"`

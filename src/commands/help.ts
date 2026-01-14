@@ -333,6 +333,18 @@ function getCapabilities() {
         options: ["--message-url <url>", "--channel <channel>", "--thread-ts <ts>", "--ts <message-ts>"]
       },
       {
+        command: "slack history <channel>",
+        description: "List messages from a channel",
+        args: ["channel"],
+        options: ["--limit <count>", "--since <time>", "--latest <time>", "--compact"]
+      },
+      {
+        command: "slack search <query>",
+        description: "Search Slack messages (user token required)",
+        args: ["query"],
+        options: ["--limit <count>", "--sort <sort>", "--sort-dir <dir>", "--compact"]
+      },
+      {
         command: "files upload <file-path>",
         description: "Upload a file to Slack",
         args: ["file-path"],
