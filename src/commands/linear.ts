@@ -4,7 +4,7 @@ import { resolveDefaultChannel, resolveLinearApiKey, resolveLinearTeamId, resolv
 import { LinearClient } from "../lib/linear-client";
 import { parseMessageUrl, resolveChannelId } from "../lib/resolvers";
 import { SlackListsClient } from "../lib/slack-client";
-import { getThreadEntry, setThreadEntry } from "../lib/thread-map";
+import { getThreadEntries, setThreadEntry, ThreadEntry } from "../lib/thread-map";
 import { getGlobalOptions } from "../utils/command";
 import { handleCommandError } from "../utils/errors";
 import { outputJson } from "../utils/output";
@@ -207,6 +207,99 @@ export function registerLinearCommands(program: Command): void {
       }
     });
 
+  const threads = linear.command("threads").description("Manage Slack threads for Linear issues");
+
+  threads
+    .command("list")
+    .description("List Slack threads for a Linear issue")
+    .argument("<issue-id>", "Linear issue ID or identifier")
+    .action(async (issueId: string, _options, command: Command) => {
+      const globals = getGlobalOptions(command);
+      try {
+        const linear = getLinearClient();
+        const issue = await fetchIssue(linear, issueId);
+        const teamId = issue.team?.id;
+        const storedEntries = await getThreadEntries(linearThreadScope(teamId), issueId);
+        const attachmentEntries = extractThreadsFromIssue(issue);
+        const combined = mergeThreadEntries(storedEntries, attachmentEntries);
+        const latest = selectThreadEntry(combined);
+
+        outputJson({
+          ok: true,
+          issue_id: issueId,
+          latest_thread: latest ?? null,
+          threads: combined
+        });
+      } catch (error) {
+        handleCommandError(error, globals.verbose);
+      }
+    });
+
+  threads
+    .command("set")
+    .description("Store a Slack thread mapping for a Linear issue")
+    .argument("<issue-id>", "Linear issue ID or identifier")
+    .option("--message-url <url>", "Slack message URL")
+    .option("--channel <channel>", "Channel ID or name")
+    .option("--thread-ts <ts>", "Thread timestamp")
+    .option("--label <label>", "Label for the thread")
+    .option("--state <state>", "State for the thread")
+    .option("--attach", "Attach the thread permalink to Linear", false)
+    .action(async (issueId: string, options, command: Command) => {
+      const globals = getGlobalOptions(command);
+      const slackClient = new SlackListsClient(resolveToken(globals));
+
+      try {
+        const linear = getLinearClient();
+        const issue = await fetchIssue(linear, issueId);
+        const teamId = issue.team?.id;
+
+        const url = options.messageUrl as string | undefined;
+        let channel = options.channel ? await resolveChannelId(slackClient, options.channel) : undefined;
+        let threadTs = options.threadTs as string | undefined;
+
+        if (url) {
+          const parsed = parseMessageUrl(url);
+          if (!parsed) {
+            throw new Error("Unable to parse message URL");
+          }
+          channel = channel ?? parsed.channel;
+          threadTs = threadTs ?? parsed.ts;
+        }
+
+        if (!channel || !threadTs) {
+          throw new Error("Provide --message-url or both --channel and --thread-ts");
+        }
+
+        if (options.attach && url) {
+          await createThreadAttachment(linear, issue.id, url, channel, threadTs, {
+            label: options.label as string | undefined,
+            state: options.state as string | undefined
+          });
+        }
+
+        await setThreadEntry(linearThreadScope(teamId), issueId, {
+          permalink: url,
+          channel,
+          ts: threadTs,
+          label: options.label as string | undefined,
+          state: options.state as string | undefined
+        });
+
+        outputJson({
+          ok: true,
+          issue_id: issueId,
+          channel,
+          thread_ts: threadTs,
+          permalink: url,
+          label: options.label as string | undefined,
+          state: options.state as string | undefined
+        });
+      } catch (error) {
+        handleCommandError(error, globals.verbose);
+      }
+    });
+
   linear
     .command("comment")
     .description("Post a Slack comment for a Linear issue")
@@ -215,6 +308,8 @@ export function registerLinearCommands(program: Command): void {
     .option("--channel <channel>", "Channel ID or name")
     .option("--thread-ts <ts>", "Thread timestamp")
     .option("--message-url <url>", "Slack message URL to infer thread")
+    .option("--thread-label <label>", "Label to store for the thread")
+    .option("--thread-state <state>", "State to store for the thread")
     .action(async (issueId: string, text: string, options, command: Command) => {
       const globals = getGlobalOptions(command);
       const slackClient = new SlackListsClient(resolveToken(globals));
@@ -223,6 +318,9 @@ export function registerLinearCommands(program: Command): void {
         const linear = getLinearClient();
         const issue = await fetchIssue(linear, issueId);
         const teamId = issue.team?.id;
+
+        const threadLabel = options.threadLabel as string | undefined;
+        const threadState = options.threadState as string | undefined;
 
         let channel = options.channel ? await resolveChannelId(slackClient, options.channel) : undefined;
         let threadTs = options.threadTs as string | undefined;
@@ -236,28 +334,16 @@ export function registerLinearCommands(program: Command): void {
           }
         }
 
-        if (!channel || !threadTs) {
-          const fromAttachment = extractThreadFromIssue(issue);
-          if (fromAttachment) {
-            channel = channel ?? fromAttachment.channel;
-            threadTs = threadTs ?? fromAttachment.ts;
-            messageUrl = messageUrl ?? fromAttachment.permalink;
-          }
-        }
+        const storedEntries = await getThreadEntries(linearThreadScope(teamId), issueId);
+        const attachmentEntries = extractThreadsFromIssue(issue);
+        const combined = mergeThreadEntries(storedEntries, attachmentEntries);
+        const preferred = selectThreadEntry(combined, threadLabel);
 
         if (!channel || !threadTs) {
-          const stored = await getThreadEntry(linearThreadScope(teamId), issueId);
-          if (stored?.permalink) {
-            const parsed = parseMessageUrl(stored.permalink);
-            if (parsed) {
-              channel = channel ?? parsed.channel;
-              threadTs = threadTs ?? parsed.ts;
-              messageUrl = messageUrl ?? stored.permalink;
-            }
-          }
-          if (stored?.channel && stored?.ts) {
-            channel = channel ?? stored.channel;
-            threadTs = threadTs ?? stored.ts;
+          if (preferred) {
+            channel = channel ?? preferred.channel;
+            threadTs = threadTs ?? preferred.ts;
+            messageUrl = messageUrl ?? preferred.permalink;
           }
         }
 
@@ -284,12 +370,17 @@ export function registerLinearCommands(program: Command): void {
             throw new Error("Unable to fetch permalink for thread root");
           }
 
-          await createThreadAttachment(linear, issue.id, permalink, channel, rootTs);
+          await createThreadAttachment(linear, issue.id, permalink, channel, rootTs, {
+            label: threadLabel,
+            state: threadState
+          });
 
           await setThreadEntry(linearThreadScope(teamId), issueId, {
             permalink,
             channel,
-            ts: rootTs
+            ts: rootTs,
+            label: threadLabel,
+            state: threadState
           });
 
           messageUrl = permalink;
@@ -304,11 +395,13 @@ export function registerLinearCommands(program: Command): void {
 
         const result = await slackClient.postMessage({ channel, text, thread_ts: threadTs });
 
-        if (messageUrl) {
+        if (messageUrl || (channel && threadTs)) {
           await setThreadEntry(linearThreadScope(teamId), issueId, {
             permalink: messageUrl,
             channel,
-            ts: threadTs
+            ts: threadTs,
+            label: threadLabel,
+            state: threadState
           });
         }
 
@@ -325,6 +418,7 @@ export function registerLinearCommands(program: Command): void {
     .option("--channel <channel>", "Channel ID or name")
     .option("--thread-ts <ts>", "Thread timestamp")
     .option("--message-url <url>", "Slack message URL to infer thread")
+    .option("--thread-label <label>", "Select a thread by label")
     .option("--limit <count>", "Maximum messages to return", "200")
     .option("--compact", "Return only user/text/ts fields", false)
     .action(async (issueId: string, options, command: Command) => {
@@ -339,6 +433,7 @@ export function registerLinearCommands(program: Command): void {
         let channel = options.channel ? await resolveChannelId(slackClient, options.channel) : undefined;
         let threadTs = options.threadTs as string | undefined;
         let messageUrl = options.messageUrl as string | undefined;
+        const threadLabel = options.threadLabel as string | undefined;
 
         if ((!channel || !threadTs) && messageUrl) {
           const parsed = parseMessageUrl(messageUrl);
@@ -348,27 +443,16 @@ export function registerLinearCommands(program: Command): void {
           }
         }
 
-        if (!channel || !threadTs) {
-          const fromAttachment = extractThreadFromIssue(issue);
-          if (fromAttachment) {
-            channel = channel ?? fromAttachment.channel;
-            threadTs = threadTs ?? fromAttachment.ts;
-            messageUrl = messageUrl ?? fromAttachment.permalink;
-          }
-        }
+        const storedEntries = await getThreadEntries(linearThreadScope(teamId), issueId);
+        const attachmentEntries = extractThreadsFromIssue(issue);
+        const combined = mergeThreadEntries(storedEntries, attachmentEntries);
+        const preferred = selectThreadEntry(combined, threadLabel);
 
         if (!channel || !threadTs) {
-          const stored = await getThreadEntry(linearThreadScope(teamId), issueId);
-          if (stored?.permalink) {
-            const parsed = parseMessageUrl(stored.permalink);
-            if (parsed) {
-              channel = channel ?? parsed.channel;
-              threadTs = threadTs ?? parsed.ts;
-            }
-          }
-          if (stored?.channel && stored?.ts) {
-            channel = channel ?? stored.channel;
-            threadTs = threadTs ?? stored.ts;
+          if (preferred) {
+            channel = channel ?? preferred.channel;
+            threadTs = threadTs ?? preferred.ts;
+            messageUrl = messageUrl ?? preferred.permalink;
           }
         }
 
@@ -414,11 +498,12 @@ export function registerLinearCommands(program: Command): void {
             }))
           : trimmed;
 
-        if (messageUrl && channel && threadTs) {
+        if ((messageUrl || (channel && threadTs)) && channel && threadTs) {
           await setThreadEntry(linearThreadScope(teamId), issueId, {
             permalink: messageUrl,
             channel,
-            ts: threadTs
+            ts: threadTs,
+            label: threadLabel
           });
         }
 
@@ -495,8 +580,9 @@ function linearThreadScope(teamId?: string): string {
   return teamId ? `linear:${teamId}` : "linear";
 }
 
-function extractThreadFromIssue(issue: LinearIssue): { permalink?: string; channel: string; ts: string } | null {
+function extractThreadsFromIssue(issue: LinearIssue): ThreadEntry[] {
   const attachments = issue.attachments?.nodes ?? [];
+  const entries: ThreadEntry[] = [];
   for (const attachment of attachments) {
     if (!attachment?.url) {
       continue;
@@ -506,10 +592,10 @@ function extractThreadFromIssue(issue: LinearIssue): { permalink?: string; chann
     }
     const parsed = parseMessageUrl(attachment.url);
     if (parsed) {
-      return { permalink: attachment.url, channel: parsed.channel, ts: parsed.ts };
+      entries.push({ permalink: attachment.url, channel: parsed.channel, ts: parsed.ts });
     }
   }
-  return null;
+  return entries;
 }
 
 function buildLinearThreadRootText(issue: LinearIssue): string {
@@ -546,7 +632,8 @@ async function createThreadAttachment(
   issueId: string,
   permalink: string,
   channel: string,
-  threadTs: string
+  threadTs: string,
+  meta?: { label?: string; state?: string }
 ): Promise<void> {
   try {
     await client.request(ATTACHMENT_CREATE_MUTATION, {
@@ -557,11 +644,84 @@ async function createThreadAttachment(
         url: permalink,
         metadata: {
           channel,
-          thread_ts: threadTs
+          thread_ts: threadTs,
+          label: meta?.label,
+          state: meta?.state
         }
       }
     });
   } catch {
     // Best effort; attachment is optional if the org disallows it
   }
+}
+
+function mergeThreadEntries(existing: ThreadEntry[], incoming: ThreadEntry[]): ThreadEntry[] {
+  const merged = [...existing];
+  for (const entry of incoming) {
+    if (!entry) {
+      continue;
+    }
+    const exists = merged.some((candidate) => matchesThread(candidate, entry));
+    if (!exists) {
+      merged.push(entry);
+    }
+  }
+  return sortThreads(merged);
+}
+
+function selectThreadEntry(entries: ThreadEntry[], label?: string): ThreadEntry | null {
+  if (entries.length === 0) {
+    return null;
+  }
+  const sorted = sortThreads(entries);
+  if (label) {
+    const normalized = label.toLowerCase();
+    const labeled = sorted.filter((entry) => entry.label?.toLowerCase() === normalized);
+    if (labeled.length > 0) {
+      return labeled[labeled.length - 1];
+    }
+  }
+  return sorted[sorted.length - 1];
+}
+
+function sortThreads(entries: ThreadEntry[]): ThreadEntry[] {
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => {
+      const timeDiff = parseThreadTime(a.entry) - parseThreadTime(b.entry);
+      if (timeDiff !== 0) {
+        return timeDiff;
+      }
+      return a.index - b.index;
+    })
+    .map(({ entry }) => entry);
+}
+
+function matchesThread(a: ThreadEntry, b: ThreadEntry): boolean {
+  if (a.ts && b.ts && a.ts === b.ts) {
+    return true;
+  }
+  if (a.permalink && b.permalink && a.permalink === b.permalink) {
+    return true;
+  }
+  if (a.channel && b.channel && a.ts && b.ts) {
+    return a.channel === b.channel && a.ts === b.ts;
+  }
+  return false;
+}
+
+function parseThreadTime(entry: ThreadEntry): number {
+  if (entry.updated_at) {
+    const time = Date.parse(entry.updated_at);
+    if (!Number.isNaN(time)) {
+      return time;
+    }
+  }
+  if (entry.created_at) {
+    const time = Date.parse(entry.created_at);
+    if (!Number.isNaN(time)) {
+      return time;
+    }
+  }
+  return 0;
 }

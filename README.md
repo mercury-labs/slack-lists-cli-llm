@@ -76,7 +76,7 @@ node /absolute/path/to/ml-agent/dist/index.js <command>
    ```
 4) Invite the bot to the channel where you want updates:
    ```
-   /invite @lists-cli
+   /invite @ml-agent
    ```
 5) Verify the CLI:
    ```
@@ -201,16 +201,22 @@ ml-agent sync cycles --current --write
 ml-agent sync cycles --team-key PRO --current --write-team
 ml-agent issues list
 ml-agent issues list --state "In Progress"
+ml-agent issues list --compact
 ml-agent issues get <issue-id>
 ml-agent issues create --title "Task" --team <team-id>
 ml-agent issues update <issue-id> --state "In Progress"
+ml-agent issues comment <issue-id> "Markdown *supported*"
 ```
 
 ### Linear Slack Threads
 
 ```
 ml-agent linear comment <issue-id> "Question for the author"
+ml-agent linear comment <issue-id> "Question for the author" --thread-label discovery
+ml-agent linear comment <issue-id> "Update" --thread-state waiting_on_user
 ml-agent linear comments <issue-id> --compact
+ml-agent linear threads list <issue-id>
+ml-agent linear threads set <issue-id> --message-url <url> --label review --state needs_followup
 ```
 
 ### Lists
@@ -276,6 +282,7 @@ ml-agent evidence list <list-id> <item-id>
 ml-agent screenshot capture https://example.com --out ./ui.png --full
 ml-agent screenshot capture http://localhost:3000 --selector ".hero"
 ml-agent screenshot post https://example.com --channel C123 --comment "UI after change"
+ml-agent screenshot post https://example.com --issue ABC-123 --channel C123 --comment "UI attached to Linear"
 ml-agent screenshot post https://example.com --list-id F123 --item-id I456 --channel C123 --comment "UI attached"
 ml-agent screenshot post https://example.com --message-url <thread-url> --comment "Updated UI"
 ```
@@ -317,6 +324,9 @@ that represent your agent lifecycle (e.g. `Needs Input`, `In Progress`, `Blocked
 ml-agent issues update <issue-id> --state "Needs Input"
 ml-agent issues update <issue-id> --state "Ready for Test"
 ```
+
+`ml-agent issues list --compact` returns `thread_state` and `latest_thread` so agents can
+decide whether to ask questions or proceed without fetching full issue payloads.
 
 ## Output Format
 
@@ -402,7 +412,8 @@ You can also set per-list defaults in `~/.config/ml-agent/projects/<project>/con
 ```
 
 Thread mappings are stored in `~/.config/ml-agent/projects/<project>/threads.json` and can be managed
-via `ml-agent threads set/get`.
+via `ml-agent threads set/get` or `ml-agent linear threads list/set` for Linear issues. Multiple threads
+per issue are supported; the newest thread is used by default.
 
 To clean up duplicate threads created by accident:
 - Preferred (requires history scopes):  
@@ -419,10 +430,13 @@ To clean up duplicate threads created by accident:
 - `ml-agent sync cycles --current --write`
 - `ml-agent sync cycles --team-key PRO --current --write-team`
 - `ml-agent issues list`
+- `ml-agent issues list --compact`
 - `ml-agent issues get <issue-id>`
 - `ml-agent issues update <issue-id> --state "In Progress"`
+- `ml-agent issues comment <issue-id> "Markdown *ok*"`
 - `ml-agent linear comment <issue-id> "Question"`
 - `ml-agent linear comments <issue-id> --compact`
+- `ml-agent linear threads list <issue-id>`
 - `ml-agent lists info <list-id>`
 - `ml-agent lists id <list-url>`
 - `ml-agent schema <list-id>`
@@ -436,6 +450,7 @@ To clean up duplicate threads created by accident:
 - `ml-agent evidence upload <list-id> <item-id> ./file.png`
 - `ml-agent screenshot capture https://example.com --out ./ui.png`
 - `ml-agent screenshot post https://example.com --channel C123 --comment "UI update"`
+- `ml-agent screenshot post https://example.com --issue ABC-123 --channel C123 --comment "UI update"`
 ```
 
 ## Scripts

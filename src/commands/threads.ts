@@ -3,7 +3,7 @@ import { Command } from "commander";
 import { resolveToken } from "../lib/config";
 import { parseMessageUrl, resolveChannelId } from "../lib/resolvers";
 import { SlackListsClient } from "../lib/slack-client";
-import { getThreadEntry, removeThreadEntry, setThreadEntry } from "../lib/thread-map";
+import { getThreadEntry, getThreadEntries, removeThreadEntry, setThreadEntry } from "../lib/thread-map";
 import { getGlobalOptions } from "../utils/command";
 import { handleCommandError } from "../utils/errors";
 import { outputJson } from "../utils/output";
@@ -19,8 +19,15 @@ export function registerThreadsCommands(program: Command): void {
     .action(async (listId: string, itemId: string, _options, command: Command) => {
       const globals = getGlobalOptions(command);
       try {
-        const entry = await getThreadEntry(listId, itemId);
-        outputJson({ ok: true, list_id: listId, item_id: itemId, thread: entry });
+        const entries = await getThreadEntries(listId, itemId);
+        const latest = await getThreadEntry(listId, itemId);
+        outputJson({
+          ok: true,
+          list_id: listId,
+          item_id: itemId,
+          thread: latest,
+          threads: entries
+        });
       } catch (error) {
         handleCommandError(error, globals.verbose);
       }
@@ -34,6 +41,8 @@ export function registerThreadsCommands(program: Command): void {
     .option("--message-url <url>", "Slack message URL")
     .option("--channel <channel>", "Channel ID or name")
     .option("--thread-ts <ts>", "Thread timestamp")
+    .option("--label <label>", "Label for the thread")
+    .option("--state <state>", "State for the thread")
     .action(async (listId: string, itemId: string, options, command: Command) => {
       const globals = getGlobalOptions(command);
       const client = new SlackListsClient(resolveToken(globals));
@@ -59,10 +68,21 @@ export function registerThreadsCommands(program: Command): void {
         await setThreadEntry(listId, itemId, {
           permalink: url,
           channel,
-          ts: threadTs
+          ts: threadTs,
+          label: options.label as string | undefined,
+          state: options.state as string | undefined
         });
 
-        outputJson({ ok: true, list_id: listId, item_id: itemId, channel, thread_ts: threadTs, permalink: url });
+        outputJson({
+          ok: true,
+          list_id: listId,
+          item_id: itemId,
+          channel,
+          thread_ts: threadTs,
+          permalink: url,
+          label: options.label as string | undefined,
+          state: options.state as string | undefined
+        });
       } catch (error) {
         handleCommandError(error, globals.verbose);
       }

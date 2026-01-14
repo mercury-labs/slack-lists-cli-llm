@@ -84,13 +84,45 @@ function getCapabilities() {
         command: "linear comment <issue-id> <text>",
         description: "Post a Slack comment for a Linear issue",
         args: ["issue-id", "text"],
-        options: ["--channel <channel>", "--thread-ts <ts>", "--message-url <url>"]
+        options: [
+          "--channel <channel>",
+          "--thread-ts <ts>",
+          "--message-url <url>",
+          "--thread-label <label>",
+          "--thread-state <state>"
+        ]
       },
       {
         command: "linear comments <issue-id>",
         description: "List Slack thread messages for a Linear issue",
         args: ["issue-id"],
-        options: ["--channel <channel>", "--thread-ts <ts>", "--message-url <url>", "--limit <count>", "--compact"]
+        options: [
+          "--channel <channel>",
+          "--thread-ts <ts>",
+          "--message-url <url>",
+          "--thread-label <label>",
+          "--limit <count>",
+          "--compact"
+        ]
+      },
+      {
+        command: "linear threads list <issue-id>",
+        description: "List Slack threads for a Linear issue",
+        args: ["issue-id"],
+        options: []
+      },
+      {
+        command: "linear threads set <issue-id>",
+        description: "Store a Slack thread mapping for a Linear issue",
+        args: ["issue-id"],
+        options: [
+          "--message-url <url>",
+          "--channel <channel>",
+          "--thread-ts <ts>",
+          "--label <label>",
+          "--state <state>",
+          "--attach"
+        ]
       },
       {
         command: "issues list",
@@ -115,6 +147,12 @@ function getCapabilities() {
         description: "Update a Linear issue",
         args: ["issue-id"],
         options: ["--team <team-id>", "--title <title>", "--description <text>", "--state <state>", "--assignee <assignee>", "--cycle <cycle-id>"]
+      },
+      {
+        command: "issues comment <issue-id> <text>",
+        description: "Post a comment on a Linear issue (Markdown supported)",
+        args: ["issue-id", "text"],
+        options: []
       },
       {
         command: "setup",
@@ -249,7 +287,7 @@ function getCapabilities() {
         command: "threads set <list-id> <item-id>",
         description: "Store thread mapping for an item",
         args: ["list-id", "item-id"],
-        options: ["--message-url <url>", "--channel <channel>", "--thread-ts <ts>"]
+        options: ["--message-url <url>", "--channel <channel>", "--thread-ts <ts>", "--label <label>", "--state <state>"]
       },
       {
         command: "threads cleanup <list-id> <item-id>",
@@ -331,6 +369,7 @@ function getCapabilities() {
           "--title <text>",
           "--list-id <list-id>",
           "--item-id <item-id>",
+          "--issue <issue-id>",
           "--column <column>",
           "--column-type <attachment|reference>",
           "--out <path>",

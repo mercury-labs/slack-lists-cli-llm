@@ -2,10 +2,11 @@ import { Command } from "commander";
 import { createReadStream, promises as fs } from "fs";
 import path from "path";
 
-import { resolveDefaultChannel, resolveToken } from "../lib/config";
+import { resolveDefaultChannel, resolveLinearApiKey, resolveToken } from "../lib/config";
 import { resolveEvidenceColumn } from "../lib/evidence";
 import { buildTypedField } from "../lib/fields";
 import { extractFileId, extractFilePermalink } from "../lib/file-utils";
+import { LinearClient } from "../lib/linear-client";
 import { parseMessageUrl, resolveChannelId } from "../lib/resolvers";
 import { resolveSchemaIndex } from "../lib/schema-resolver";
 import { createTempScreenshotPath, captureScreenshot, ensurePngPath } from "../lib/screenshot";
@@ -17,6 +18,18 @@ import { ColumnType } from "../lib/types";
 import { getGlobalOptions } from "../utils/command";
 import { handleCommandError } from "../utils/errors";
 import { outputJson } from "../utils/output";
+
+const LINEAR_ATTACHMENT_MUTATION = `
+  mutation AttachmentCreate($input: AttachmentCreateInput!) {
+    attachmentCreate(input: $input) {
+      success
+      attachment {
+        id
+        url
+      }
+    }
+  }
+`;
 
 export function registerScreenshotCommands(program: Command): void {
   const screenshot = program.command("screenshot").description("Capture and share browser screenshots");
@@ -59,6 +72,7 @@ export function registerScreenshotCommands(program: Command): void {
     .option("--title <text>", "Optional title for the uploaded file")
     .option("--list-id <list-id>", "List ID to attach the screenshot")
     .option("--item-id <item-id>", "Item ID to attach the screenshot")
+    .option("--issue <issue-id>", "Linear issue ID or identifier")
     .option("--column <column>", "Column ID/key/name to update")
     .option("--column-type <type>", "attachment|reference", "attachment")
     .option("--out <path>", "Output path (defaults to a temp file)")
@@ -87,6 +101,8 @@ export function registerScreenshotCommands(program: Command): void {
         if ((listId && !itemId) || (!listId && itemId)) {
           throw new Error("Provide both --list-id and --item-id to attach to a list item.");
         }
+
+        const issueId = options.issue as string | undefined;
 
         let channel = options.channel ? await resolveChannelId(client, options.channel) : undefined;
         let threadTs = options.threadTs as string | undefined;
@@ -209,6 +225,25 @@ export function registerScreenshotCommands(program: Command): void {
           });
         }
 
+        let linearAttachment: unknown = undefined;
+        if (issueId) {
+          if (!permalink) {
+            throw new Error("Unable to attach screenshot to Linear issue: missing Slack file permalink.");
+          }
+          const linear = getLinearClient();
+          linearAttachment = await linear.request<Record<string, unknown>>(LINEAR_ATTACHMENT_MUTATION, {
+            input: {
+              issueId,
+              title: options.title ?? filename,
+              url: permalink,
+              metadata: {
+                source: "ml-agent",
+                type: "screenshot"
+              }
+            }
+          });
+        }
+
         outputJson({
           ok: true,
           screenshot: {
@@ -226,7 +261,11 @@ export function registerScreenshotCommands(program: Command): void {
           file_permalink: permalink,
           list_id: listId,
           item_id: itemId,
+          issue_id: issueId,
           column_id: columnId,
+          linear: {
+            attachment: linearAttachment
+          },
           slack: {
             upload: uploadResult,
             update: updateResult
@@ -240,6 +279,14 @@ export function registerScreenshotCommands(program: Command): void {
         }
       }
     });
+}
+
+function getLinearClient(): LinearClient {
+  const apiKey = resolveLinearApiKey();
+  if (!apiKey) {
+    throw new Error("Missing Linear API key. Set LINEAR_API_KEY or .ml-agent.config.json");
+  }
+  return new LinearClient(apiKey);
 }
 
 function buildCaptureOptions(url: string, outputPath: string, options: Record<string, unknown>) {

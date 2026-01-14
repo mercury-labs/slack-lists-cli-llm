@@ -2,6 +2,7 @@ import { Command } from "commander";
 
 import { resolveLinearApiKey, resolveLinearCycleId, resolveLinearTeamId } from "../lib/config";
 import { LinearClient } from "../lib/linear-client";
+import { getThreadEntry } from "../lib/thread-map";
 import { getGlobalOptions } from "../utils/command";
 import { handleCommandError } from "../utils/errors";
 import { outputJson } from "../utils/output";
@@ -73,6 +74,19 @@ const ISSUE_UPDATE_MUTATION = `
         id
         identifier
         title
+        url
+      }
+    }
+  }
+`;
+
+const COMMENT_CREATE_MUTATION = `
+  mutation CommentCreate($input: CommentCreateInput!) {
+    commentCreate(input: $input) {
+      success
+      comment {
+        id
+        body
         url
       }
     }
@@ -195,15 +209,33 @@ export function registerIssuesCommands(program: Command): void {
         }
 
         const trimmed = collected.slice(0, limit);
+        const threadScope = linearThreadScope(teamId);
+        const latestThreads = options.compact
+          ? await Promise.all(trimmed.map((issue) => getThreadEntry(threadScope, issue.id)))
+          : [];
+
         const payload = options.compact
-          ? trimmed.map((issue) => ({
-              id: issue.id,
-              identifier: issue.identifier,
-              title: issue.title,
-              state: issue.state?.name,
-              assignee: issue.assignee?.email ?? issue.assignee?.name,
-              cycle: issue.cycle?.name
-            }))
+          ? trimmed.map((issue, index) => {
+              const thread = latestThreads[index] ?? null;
+              return {
+                id: issue.id,
+                identifier: issue.identifier,
+                title: issue.title,
+                state: issue.state?.name,
+                assignee: issue.assignee?.email ?? issue.assignee?.name,
+                cycle: issue.cycle?.name,
+                thread_state: thread?.state ?? null,
+                latest_thread: thread
+                  ? {
+                      permalink: thread.permalink,
+                      channel: thread.channel,
+                      ts: thread.ts,
+                      label: thread.label,
+                      state: thread.state
+                    }
+                  : null
+              };
+            })
           : trimmed;
 
         outputJson({
@@ -230,6 +262,27 @@ export function registerIssuesCommands(program: Command): void {
           throw new Error("Issue not found");
         }
         outputJson({ ok: true, issue: result.issue });
+      } catch (error) {
+        handleCommandError(error, globals.verbose);
+      }
+    });
+
+  issues
+    .command("comment")
+    .description("Post a comment on a Linear issue (Markdown supported)")
+    .argument("<issue-id>", "Issue ID or identifier")
+    .argument("<text>", "Comment text (Markdown)")
+    .action(async (issueId: string, text: string, _options, command: Command) => {
+      const globals = getGlobalOptions(command);
+      try {
+        const client = getLinearClient();
+        const result = await client.request<Record<string, unknown>>(COMMENT_CREATE_MUTATION, {
+          input: {
+            issueId,
+            body: text
+          }
+        });
+        outputJson({ ok: true, result });
       } catch (error) {
         handleCommandError(error, globals.verbose);
       }
@@ -452,4 +505,8 @@ async function resolveAssigneeId(client: LinearClient, input?: string): Promise<
 
 function looksLikeId(value: string): boolean {
   return /^[0-9a-f-]{32,36}$/i.test(value);
+}
+
+function linearThreadScope(teamId: string): string {
+  return teamId ? `linear:${teamId}` : "linear";
 }
