@@ -1,6 +1,12 @@
 import { Command } from "commander";
 
-import { resolveDefaultChannel, resolveLinearApiKey, resolveLinearTeamId, resolveToken } from "../lib/config";
+import {
+  resolveDefaultChannel,
+  resolveLinearApiKey,
+  resolveLinearTeamId,
+  resolveLinearTeamKey,
+  resolveToken
+} from "../lib/config";
 import { LinearClient } from "../lib/linear-client";
 import { parseMessageUrl, resolveChannelId } from "../lib/resolvers";
 import { SlackListsClient } from "../lib/slack-client";
@@ -158,8 +164,8 @@ export function registerLinearCommands(program: Command): void {
     .action(async (options, command: Command) => {
       const globals = getGlobalOptions(command);
       try {
-        const teamId = resolveTeamId(options.team);
         const client = getLinearClient();
+        const teamId = await resolveTeamId(client, options.team);
         const result = await client.request<TeamStatesResponse>(TEAM_STATES_QUERY, { teamId });
         outputJson({ ok: true, team: result.team, states: result.team?.states?.nodes ?? [] });
       } catch (error) {
@@ -176,9 +182,9 @@ export function registerLinearCommands(program: Command): void {
     .action(async (options, command: Command) => {
       const globals = getGlobalOptions(command);
       try {
-        const teamId = resolveTeamId(options.team);
-        const limit = parseLimit(options.limit);
         const client = getLinearClient();
+        const teamId = await resolveTeamId(client, options.team);
+        const limit = parseLimit(options.limit);
         const result = await client.request<TeamCyclesResponse>(TEAM_CYCLES_QUERY, {
           teamId,
           first: limit
@@ -560,12 +566,27 @@ function getLinearClient(): LinearClient {
   return new LinearClient(apiKey);
 }
 
-function resolveTeamId(option?: string): string {
-  const teamId = option ?? resolveLinearTeamId();
-  if (!teamId) {
-    throw new Error("Provide --team or set LINEAR_TEAM_ID / .ml-agent.config.json");
+async function resolveTeamId(client: LinearClient, option?: string): Promise<string> {
+  const configured = resolveLinearTeamId();
+  const configuredKey = resolveLinearTeamKey();
+  const candidate = option ?? configured;
+
+  if (candidate && looksLikeId(candidate)) {
+    return candidate;
   }
-  return teamId;
+
+  const key = candidate ?? configuredKey;
+  if (!key) {
+    throw new Error(
+      "Provide --team (id or key) or set LINEAR_TEAM_ID / LINEAR_TEAM_KEY / .ml-agent.config.json"
+    );
+  }
+
+  const resolved = await resolveTeamIdByKey(client, key);
+  if (!resolved) {
+    throw new Error(`Unable to resolve Linear team for key: ${key}`);
+  }
+  return resolved;
 }
 
 async function fetchIssue(client: LinearClient, issueId: string): Promise<LinearIssue> {
@@ -610,6 +631,24 @@ function parseLimit(value: string | undefined): number {
     throw new Error("--limit must be a positive number");
   }
   return limit;
+}
+
+function looksLikeId(value: string): boolean {
+  return /^[0-9a-f-]{32,36}$/i.test(value);
+}
+
+async function resolveTeamIdByKey(client: LinearClient, teamKey: string): Promise<string | null> {
+  const result = await client.request<{ teams?: { nodes?: Array<{ id?: string; key?: string; name?: string }> } }>(
+    TEAMS_QUERY
+  );
+  const teams = result.teams?.nodes ?? [];
+  const normalized = teamKey.toLowerCase();
+  const match = teams.find(
+    (team) =>
+      (team.key && team.key.toLowerCase() === normalized) ||
+      (team.name && team.name.toLowerCase() === normalized)
+  );
+  return match?.id ?? null;
 }
 
 function findCurrentCycle(cycles: CycleNode[]): CycleNode | null {

@@ -26,6 +26,7 @@ export type ProjectConfig = {
   linear?: {
     api_key?: string;
     team_id?: string;
+    team_key?: string;
     cycle_id?: string;
   };
 };
@@ -93,6 +94,14 @@ export function resolveLinearTeamId(): string | undefined {
   }
   const project = loadProjectConfig();
   return project?.linear?.team_id;
+}
+
+export function resolveLinearTeamKey(): string | undefined {
+  if (process.env.LINEAR_TEAM_KEY) {
+    return process.env.LINEAR_TEAM_KEY;
+  }
+  const project = loadProjectConfig();
+  return project?.linear?.team_key;
 }
 
 export function resolveLinearCycleId(): string | undefined {

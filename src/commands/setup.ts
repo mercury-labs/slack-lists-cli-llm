@@ -28,6 +28,7 @@ export function registerSetupCommand(program: Command): void {
         projectConfig?.slack?.token;
       const linearApiKey = process.env.LINEAR_API_KEY ?? projectConfig?.linear?.api_key;
       const teamId = process.env.LINEAR_TEAM_ID ?? projectConfig?.linear?.team_id;
+      const teamKey = process.env.LINEAR_TEAM_KEY ?? projectConfig?.linear?.team_key;
       const cycleId = process.env.LINEAR_CYCLE_ID ?? projectConfig?.linear?.cycle_id;
       const defaultChannel =
         process.env.SLACK_LIST_DEFAULT_CHANNEL ?? projectConfig?.slack?.default_channel;
@@ -57,8 +58,8 @@ export function registerSetupCommand(program: Command): void {
         {
           id: "linear-token",
           title: "Create Linear API key + team",
-          status: linearApiKey && teamId ? "complete" : "needed",
-          details: "Create a Linear API key and set a default team ID.",
+          status: linearApiKey && (teamId || teamKey) ? "complete" : "needed",
+          details: "Create a Linear API key and set a default team ID or team key.",
           requires: [
             {
               key: "LINEAR_API_KEY",
@@ -69,6 +70,11 @@ export function registerSetupCommand(program: Command): void {
               key: "LINEAR_TEAM_ID",
               description: "Default Linear team ID",
               current: Boolean(teamId)
+            },
+            {
+              key: "LINEAR_TEAM_KEY",
+              description: "Default Linear team key (e.g. PRO)",
+              current: Boolean(teamKey)
             }
           ],
           commands: ["ml-agent linear auth status", "ml-agent linear teams"]
@@ -157,6 +163,7 @@ export function registerSetupCommand(program: Command): void {
           slack_token: Boolean(slackToken),
           linear_api_key: Boolean(linearApiKey),
           linear_team_id: Boolean(teamId),
+          linear_team_key: Boolean(teamKey),
           linear_cycle_id: Boolean(cycleId),
           default_channel: Boolean(defaultChannel)
         },

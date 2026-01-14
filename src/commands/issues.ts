@@ -1,6 +1,11 @@
 import { Command } from "commander";
 
-import { resolveLinearApiKey, resolveLinearCycleId, resolveLinearTeamId } from "../lib/config";
+import {
+  resolveLinearApiKey,
+  resolveLinearCycleId,
+  resolveLinearTeamId,
+  resolveLinearTeamKey
+} from "../lib/config";
 import { LinearClient } from "../lib/linear-client";
 import { getThreadEntry } from "../lib/thread-map";
 import { getGlobalOptions } from "../utils/command";
@@ -123,6 +128,18 @@ const USERS_QUERY = `
   }
 `;
 
+const TEAMS_QUERY = `
+  query Teams {
+    teams {
+      nodes {
+        id
+        key
+        name
+      }
+    }
+  }
+`;
+
 type IssueNode = {
   id: string;
   identifier?: string;
@@ -159,6 +176,10 @@ type UsersResponse = {
   users?: { nodes?: Array<{ id?: string; name?: string; displayName?: string; email?: string }> };
 };
 
+type TeamsResponse = {
+  teams?: { nodes?: Array<{ id?: string; key?: string; name?: string }> };
+};
+
 export function registerIssuesCommands(program: Command): void {
   const issues = program.command("issues").description("Linear issue operations");
 
@@ -175,7 +196,7 @@ export function registerIssuesCommands(program: Command): void {
       const globals = getGlobalOptions(command);
       try {
         const client = getLinearClient();
-        const teamId = resolveTeamId(options.team);
+        const teamId = await resolveTeamId(client, options.team);
         const cycleId = resolveCycleId(options.cycle);
         const limit = parseLimit(options.limit);
 
@@ -301,7 +322,7 @@ export function registerIssuesCommands(program: Command): void {
       const globals = getGlobalOptions(command);
       try {
         const client = getLinearClient();
-        const teamId = resolveTeamId(options.team);
+        const teamId = await resolveTeamId(client, options.team);
         const title = options.title as string | undefined;
         if (!title) {
           throw new Error("--title is required");
@@ -352,7 +373,7 @@ export function registerIssuesCommands(program: Command): void {
       const globals = getGlobalOptions(command);
       try {
         const client = getLinearClient();
-        const teamId = resolveTeamId(options.team);
+        const teamId = await resolveTeamId(client, options.team);
 
         const stateId = await resolveStateId(client, teamId, options.state as string | undefined);
         const assigneeId = await resolveAssigneeId(client, options.assignee as string | undefined);
@@ -398,12 +419,27 @@ function getLinearClient(): LinearClient {
   return new LinearClient(apiKey);
 }
 
-function resolveTeamId(option?: string): string {
-  const teamId = option ?? resolveLinearTeamId();
-  if (!teamId) {
-    throw new Error("Provide --team or set LINEAR_TEAM_ID / .ml-agent.config.json");
+async function resolveTeamId(client: LinearClient, option?: string): Promise<string> {
+  const configured = resolveLinearTeamId();
+  const configuredKey = resolveLinearTeamKey();
+  const candidate = option ?? configured;
+
+  if (candidate && looksLikeId(candidate)) {
+    return candidate;
   }
-  return teamId;
+
+  const key = candidate ?? configuredKey;
+  if (!key) {
+    throw new Error(
+      "Provide --team (id or key) or set LINEAR_TEAM_ID / LINEAR_TEAM_KEY / .ml-agent.config.json"
+    );
+  }
+
+  const resolved = await resolveTeamIdByKey(client, key);
+  if (!resolved) {
+    throw new Error(`Unable to resolve Linear team for key: ${key}`);
+  }
+  return resolved;
 }
 
 function resolveCycleId(option?: string): string | undefined {
@@ -505,6 +541,18 @@ async function resolveAssigneeId(client: LinearClient, input?: string): Promise<
 
 function looksLikeId(value: string): boolean {
   return /^[0-9a-f-]{32,36}$/i.test(value);
+}
+
+async function resolveTeamIdByKey(client: LinearClient, teamKey: string): Promise<string | null> {
+  const result = await client.request<TeamsResponse>(TEAMS_QUERY);
+  const teams = result.teams?.nodes ?? [];
+  const normalized = teamKey.toLowerCase();
+  const match = teams.find(
+    (team) =>
+      (team.key && team.key.toLowerCase() === normalized) ||
+      (team.name && team.name.toLowerCase() === normalized)
+  );
+  return match?.id ?? null;
 }
 
 function linearThreadScope(teamId: string): string {

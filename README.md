@@ -91,6 +91,7 @@ node /absolute/path/to/ml-agent/dist/index.js <command>
 - `SLACK_BOT_TOKEN` or `SLACK_USER_TOKEN` (optional)
 - `LINEAR_API_KEY`
 - `LINEAR_TEAM_ID` (optional default)
+- `LINEAR_TEAM_KEY` (optional default, team key like `PRO`)
 - `LINEAR_CYCLE_ID` (optional default)
 - `ML_AGENT_PROJECT` (optional project name override for caches)
 - `ML_AGENT_SCHEMA_PATH` (optional default schema file, legacy Slack Lists)
@@ -115,12 +116,17 @@ Create `.ml-agent.config.json` in your project root:
   "linear": {
     "api_key": "lin_api_...",
     "team_id": "TEAM_ID",
+    "team_key": "PRO",
     "cycle_id": "CYCLE_ID"
   }
 }
 ```
 
+Use `team_key` if you only know the short team code; run `ml-agent sync cycles --team-key PRO --current --write-team --write`
+to resolve the team ID and current cycle.
+
 This file is ignored by git by default.
+`team_key` is the short team code (e.g. `PRO`) and can be used to resolve the real team ID via `ml-agent sync cycles`.
 
 ## Global Options
 
@@ -364,6 +370,7 @@ You can use the `ml-agent` CLI for agentic coding workflows with Linear + Slack.
 - `SLACK_TOKEN` (or `SLACK_BOT_TOKEN` / `SLACK_USER_TOKEN` with `--as-user`)
 - `LINEAR_API_KEY`
 - `LINEAR_TEAM_ID` (optional default)
+- `LINEAR_TEAM_KEY` (optional default, team key like `PRO`)
 - `LINEAR_CYCLE_ID` (optional default)
 - `ML_AGENT_PROJECT` (optional project name override for caches)
 - `SLACK_LIST_DEFAULT_CHANNEL` (optional, channel ID or #name for auto-threading)
@@ -385,6 +392,7 @@ Create `.ml-agent.config.json` in the repo root with Linear + Slack defaults:
   "linear": {
     "api_key": "lin_api_...",
     "team_id": "TEAM_ID",
+    "team_key": "PRO",
     "cycle_id": "CYCLE_ID"
   }
 }

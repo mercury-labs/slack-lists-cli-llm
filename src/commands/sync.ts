@@ -5,6 +5,7 @@ import path from "path";
 import {
   resolveLinearApiKey,
   resolveLinearTeamId,
+  resolveLinearTeamKey,
   resolveProjectConfigTargetPath
 } from "../lib/config";
 import { LinearClient } from "../lib/linear-client";
@@ -88,7 +89,9 @@ export function registerSyncCommand(program: Command): void {
           options.teamKey as string | undefined
         );
         if (!resolvedTeamId) {
-          throw new Error("Provide --team/--team-key or set LINEAR_TEAM_ID / .ml-agent.config.json");
+          throw new Error(
+            "Provide --team/--team-key or set LINEAR_TEAM_ID / LINEAR_TEAM_KEY / .ml-agent.config.json"
+          );
         }
 
         const limit = parseLimit(options.limit);
@@ -209,11 +212,23 @@ async function resolveTeamId(
   teamKey?: string
 ): Promise<string | null> {
   if (explicitId) {
-    return explicitId;
+    if (looksLikeId(explicitId)) {
+      return explicitId;
+    }
+    teamKey = explicitId;
   }
   const configured = resolveLinearTeamId();
   if (configured) {
-    return configured;
+    if (looksLikeId(configured)) {
+      return configured;
+    }
+    if (!teamKey) {
+      teamKey = configured;
+    }
+  }
+  const configuredKey = resolveLinearTeamKey();
+  if (!teamKey && configuredKey) {
+    teamKey = configuredKey;
   }
   if (!teamKey) {
     return null;
@@ -227,4 +242,8 @@ async function resolveTeamId(
       (team.name && team.name.toLowerCase() === normalized)
   );
   return match?.id ?? null;
+}
+
+function looksLikeId(value: string): boolean {
+  return /^[0-9a-f-]{32,36}$/i.test(value);
 }

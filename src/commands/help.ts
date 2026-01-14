@@ -30,6 +30,7 @@ function getCapabilities() {
       { name: "SLACK_USER_TOKEN", description: "Optional user token (used with --as-user)" },
       { name: "LINEAR_API_KEY", description: "Linear API key" },
       { name: "LINEAR_TEAM_ID", description: "Default Linear team ID" },
+      { name: "LINEAR_TEAM_KEY", description: "Default Linear team key (e.g. PRO)" },
       { name: "LINEAR_CYCLE_ID", description: "Default Linear cycle ID" },
       { name: "ML_AGENT_PROJECT", description: "Override project name for cache/config paths" },
       { name: "ML_AGENT_SCHEMA_PATH", description: "Default schema JSON path (legacy Slack Lists)" },
