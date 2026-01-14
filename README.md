@@ -92,7 +92,7 @@ node /absolute/path/to/ml-agent/dist/index.js <command>
 - `LINEAR_API_KEY`
 - `LINEAR_TEAM_ID` (optional default)
 - `LINEAR_TEAM_KEY` (optional default, team key like `PRO`)
-- `LINEAR_CYCLE_ID` (optional default)
+- `LINEAR_CYCLE_ID` (optional default; placeholders like `CYCLE_ID` are ignored)
 - `ML_AGENT_PROJECT` (optional project name override for caches)
 - `ML_AGENT_SCHEMA_PATH` (optional default schema file, legacy Slack Lists)
 - `SLACK_LIST_DEFAULT_CHANNEL` (optional default channel for comment threads)
@@ -133,6 +133,7 @@ to resolve the team ID and current cycle. If `linear.state_sync` is enabled and 
 step will infer a default map automatically.
 
 This file is ignored by git by default.
+If your team doesn't use cycles, omit `cycle_id` (the placeholder value `CYCLE_ID` is ignored).
 `team_key` is the short team code (e.g. `PRO`) and can be used to resolve the real team ID via `ml-agent sync cycles`.
 
 ## Global Options

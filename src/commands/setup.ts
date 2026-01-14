@@ -1,6 +1,6 @@
 import { Command } from "commander";
 
-import { getProjectConfig, getProjectConfigPath } from "../lib/config";
+import { getProjectConfig, getProjectConfigPath, resolveLinearCycleId } from "../lib/config";
 import { CLI_DESCRIPTION, CLI_NAME, CLI_VERSION } from "../lib/metadata";
 import { outputJson } from "../utils/output";
 
@@ -29,7 +29,7 @@ export function registerSetupCommand(program: Command): void {
       const linearApiKey = process.env.LINEAR_API_KEY ?? projectConfig?.linear?.api_key;
       const teamId = process.env.LINEAR_TEAM_ID ?? projectConfig?.linear?.team_id;
       const teamKey = process.env.LINEAR_TEAM_KEY ?? projectConfig?.linear?.team_key;
-      const cycleId = process.env.LINEAR_CYCLE_ID ?? projectConfig?.linear?.cycle_id;
+      const cycleId = resolveLinearCycleId();
       const defaultChannel =
         process.env.SLACK_LIST_DEFAULT_CHANNEL ?? projectConfig?.slack?.default_channel;
       const stateMap = projectConfig?.linear?.state_map;

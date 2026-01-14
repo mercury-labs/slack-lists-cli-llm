@@ -107,11 +107,8 @@ export function resolveLinearTeamKey(): string | undefined {
 }
 
 export function resolveLinearCycleId(): string | undefined {
-  if (process.env.LINEAR_CYCLE_ID) {
-    return process.env.LINEAR_CYCLE_ID;
-  }
-  const project = loadProjectConfig();
-  return project?.linear?.cycle_id;
+  const value = process.env.LINEAR_CYCLE_ID ?? loadProjectConfig()?.linear?.cycle_id;
+  return sanitizePlaceholderId(value, ["cycle_id", "your_cycle_id", "your-cycle-id"]);
 }
 
 export function resolveLinearStateMap(): Record<string, string> | undefined {
@@ -122,6 +119,21 @@ export function resolveLinearStateMap(): Record<string, string> | undefined {
 export function resolveLinearStateSync(): boolean {
   const project = loadProjectConfig();
   return Boolean(project?.linear?.state_sync);
+}
+
+function sanitizePlaceholderId(value: string | undefined, placeholders: string[]): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const normalized = trimmed.toLowerCase();
+  if (placeholders.includes(normalized)) {
+    return undefined;
+  }
+  return trimmed;
 }
 
 export function getProjectConfig(): ProjectConfig | null {
