@@ -104,14 +104,27 @@ export function registerSyncCommand(program: Command): void {
         const current = findCurrentCycle(cycles);
 
         let updatedConfigPath: string | null = null;
-        if (options.write) {
-          if (!current?.id) {
-            throw new Error("No current cycle found to write.");
-          }
-          updatedConfigPath = await updateCycleInConfig(current.id);
-        }
         if (options.writeTeam) {
           updatedConfigPath = await updateTeamInConfig(resolvedTeamId);
+        }
+        if (options.write) {
+          if (!current?.id) {
+            const payload = {
+              ok: false,
+              team_id: resolvedTeamId,
+              current_cycle: null,
+              cycles,
+              updated_config_path: updatedConfigPath,
+              message: "No current cycle found to write."
+            };
+            if (options.current) {
+              outputJson(payload);
+              return;
+            }
+            outputJson(payload);
+            return;
+          }
+          updatedConfigPath = await updateCycleInConfig(current.id);
         }
 
         if (options.current) {
